@@ -163,7 +163,7 @@ public class SpeedBuilderHelper {
             if (themeChanged) {
                 currentVariant = "";
                 PlayerUtils.debug("Theme: " + currentTheme);
-                variantDetectionActive = requiresVariantDetection(cleanText(currentTheme));  // Only enable detection if needed
+                variantDetectionActive = requiresVariantDetection(cleanText(currentTheme));
                 if (variantDetectionActive) {
                     lastVariantScanTime = System.currentTimeMillis();
                     PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
@@ -445,7 +445,6 @@ public class SpeedBuilderHelper {
             if (data != null && data.containsKey("themes")) {
                 times = data.get("themes");
 
-                // Handle migration of old data if variant field is missing
                 migrateOldRecords();
             }
         } catch (IOException e) {
