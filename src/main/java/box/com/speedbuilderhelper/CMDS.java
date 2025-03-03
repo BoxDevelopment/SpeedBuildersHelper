@@ -91,6 +91,9 @@ public class CMDS extends CommandBase {
                     timeRecord.put("theme", record.get("theme").getAsString());
                     timeRecord.put("difficulty", record.get("difficulty").getAsString());
                     timeRecord.put("bestTime", record.get("bestTime").getAsDouble());
+                    if (record.has("variant") && !record.get("variant").getAsString().isEmpty()) {
+                        timeRecord.put("variant", record.get("variant").getAsString());
+                    }
                     times.add(timeRecord);
                 }
 
@@ -104,10 +107,17 @@ public class CMDS extends CommandBase {
                 PlayerUtils.sendLine();
                 PlayerUtils.sendMessageWithPing("§6Best Times" + (targetTheme.isEmpty() ? "" : " for " + targetTheme) + ":");
                 for (Map<String, Object> record : times) {
-                    PlayerUtils.sendMessage(String.format(" §b%s §7(%s): §a%.2fs",
-                            record.get("theme"),
-                            record.get("difficulty"),
-                            record.get("bestTime")));
+                    String theme = (String) record.get("theme");
+                    String difficulty = (String) record.get("difficulty");
+                    double bestTime = (double) record.get("bestTime");
+
+                    String variant = record.containsKey("variant") ? " (" + record.get("variant") + ")" : "";
+
+                    PlayerUtils.sendMessage(String.format(" §b%s%s §7(%s): §a%.2fs",
+                            theme,
+                            variant,
+                            difficulty,
+                            bestTime));
                 }
                 PlayerUtils.sendLine();
             } catch (Exception e) {
