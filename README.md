@@ -25,4 +25,9 @@ If you want to contribute make a pull request and I'll  merge any good addons!
 
 Hope this can be used!
 
+# KNOWN ISSUES / TODO
+
+Probably some issues with Vertical and Horizontal Painting
+and different levels of ClownFish
+
 
