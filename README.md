@@ -2,6 +2,9 @@
 A mod to assist in time keeping in speedbuilders
 
 # Usage
+Version: Forge 1.8.9
+No known incompatabilities
+
 /sb or /speedbuilders - Opens the SpeedBuilders settings
 
 /speedbuilders debug: enables / disables debugging
