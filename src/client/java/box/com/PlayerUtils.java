@@ -3,13 +3,14 @@ package box.com;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardEntry;
+import net.minecraft.scoreboard.*;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class PlayerUtils implements MinecraftInstance {
@@ -26,10 +27,11 @@ public class PlayerUtils implements MinecraftInstance {
         Scoreboard scoreboard = client.world.getScoreboard();
         ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
 
+
         if (sidebar == null) return lines;
 
-        for (ScoreboardEntry entry : scoreboard.getScoreboardEntries(sidebar)) {
-            lines.add(entry.owner());
+        for (String entry : scoreboard.getTeamNames()) {
+            lines.add(entry);
         }
 
         return lines;

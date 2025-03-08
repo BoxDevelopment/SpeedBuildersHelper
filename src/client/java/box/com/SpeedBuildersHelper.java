@@ -108,6 +108,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		String oldDifficulty = currentDifficulty;
 
 		for (String line : sidebarLines) {
+			PlayerUtils.debug(line);
 			if (line.startsWith("Theme: ")) {
 				currentTheme = line.substring(7).trim();
 			} else if (line.startsWith("Difficulty: ")) {
