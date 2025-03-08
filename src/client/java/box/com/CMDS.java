@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 
@@ -31,7 +32,7 @@ public class CMDS {
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        dispatcher.register(
+        LiteralCommandNode<FabricClientCommandSource> speedbuildersNode = dispatcher.register(
                 literal("speedbuilders")
                         .executes(CMDS::showHelp)
                         .then(literal("debug")
@@ -53,8 +54,11 @@ public class CMDS {
                                 .executes(CMDS::resetSession))
         );
 
-        // Register aliases
-        dispatcher.register(literal("sb").redirect(dispatcher.getRoot().getChild("speedbuilders")));
+        dispatcher.register(
+                literal("sb")
+                        .executes(CMDS::showHelp)  // Add execution handler for bare /sb command
+                        .redirect(speedbuildersNode)  // Redirect for subcommands
+        );
     }
 
     private static int showHelp(CommandContext<FabricClientCommandSource> context) {

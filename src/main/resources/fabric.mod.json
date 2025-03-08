@@ -22,13 +22,6 @@
 			"box.com.SpeedBuildersHelper"
 		]
 	},
-	"mixins": [
-		"speedbuildershelper.mixins.json",
-		{
-			"config": "speedbuildershelper.client.mixins.json",
-			"environment": "client"
-		}
-	],
 	"depends": {
 		"fabricloader": ">=0.16.10",
 		"minecraft": "~1.21",

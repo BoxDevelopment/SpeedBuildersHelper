@@ -84,6 +84,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 		ClientReceiveMessageEvents.GAME.register(this::onChat);
+		CMDS.register();
 
 		loadTimes();
 		loadConfig();
@@ -196,13 +197,13 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	}
 
 	private String detectPaintingVariant() {
-		boolean hasSpruce = checkForBlockInBuildArea("planks");
+		boolean hasSpruce = checkForBlockInBuildArea("spruce_planks");
 
 		return hasSpruce ? "Horizontal" : "Vertical";
 	}
 
 	private String detectClownFishVariant() {
-		int blackWoolCount = countBlocksInBuildArea("wool");
+		int blackWoolCount = countBlocksInBuildArea("black_wool");
 
 		return blackWoolCount == 1 ? "Small" : "Medium";
 	}
