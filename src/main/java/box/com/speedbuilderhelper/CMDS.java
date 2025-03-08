@@ -45,6 +45,7 @@ public class CMDS extends CommandBase {
             PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
             PlayerUtils.sendLine();
         }
+        //Test
         else if (args[0].equalsIgnoreCase("debug")) {
             SpeedBuilderHelper.Debug = !SpeedBuilderHelper.Debug;
             PlayerUtils.sendMessageWithPing("&eDebug has been " + (SpeedBuilderHelper.Debug ? "&aenabled" : "&cdisabled") + "&e.");
