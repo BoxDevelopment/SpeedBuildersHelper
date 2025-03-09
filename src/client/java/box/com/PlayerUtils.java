@@ -1,40 +1,71 @@
 package box.com;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.*;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+
 
 public class PlayerUtils implements MinecraftInstance {
     public static boolean nullCheck() {
         return mc.player != null && mc.world != null;
     }
 
-    public static List<String> getSidebarLines() {
-        List<String> lines = new ArrayList<>();
+    public static final ObjectArrayList<String> STRING_SCOREBOARD = new ObjectArrayList<>();
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) return lines;
+    static void updateScoreboard(MinecraftClient client) {
+        try {
+            STRING_SCOREBOARD.clear();
 
-        Scoreboard scoreboard = client.world.getScoreboard();
-        ScoreboardObjective sidebar = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+            ClientPlayerEntity player = client.player;
+            if (player == null) return;
 
+            Scoreboard scoreboard = player.getScoreboard();
+            ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.FROM_ID.apply(1));
+            ObjectArrayList<Text> textLines = new ObjectArrayList<>();
+            ObjectArrayList<String> stringLines = new ObjectArrayList<>();
 
-        if (sidebar == null) return lines;
+            for (ScoreHolder scoreHolder : scoreboard.getKnownScoreHolders()) {
+                if (scoreboard.getScoreHolderObjectives(scoreHolder).containsKey(objective)) {
+                    Team team = scoreboard.getScoreHolderTeam(scoreHolder.getNameForScoreboard());
 
-        for (String entry : scoreboard.getTeamNames()) {
-            lines.add(entry);
+                    if (team != null) {
+                        Text textLine = Text.empty().append(team.getPrefix().copy()).append(team.getSuffix().copy());
+                        String strLine = team.getPrefix().getString() + team.getSuffix().getString();
+
+                        if (!strLine.trim().isEmpty()) {
+                            String formatted = Formatting.strip(strLine);
+
+                            textLines.add(textLine);
+                            stringLines.add(formatted);
+                        }
+                    }
+                }
+            }
+
+            if (objective != null) {
+                stringLines.add(objective.getDisplayName().getString());
+                textLines.add(Text.empty().append(objective.getDisplayName().copy()));
+
+                Collections.reverse(stringLines);
+                Collections.reverse(textLines);
+            }
+
+            STRING_SCOREBOARD.addAll(stringLines);
+        } catch (NullPointerException e) {
+            //Do nothing
         }
-
-        return lines;
     }
 
     public static void sendMessage(String message) {
@@ -76,7 +107,7 @@ public class PlayerUtils implements MinecraftInstance {
             return;
         }
         final String txt = replace("&7[&dDEBUG&7]&r " + message);
-        mc.player.sendMessage(Text.of(txt));
+        mc.player.sendMessage(Text.literal(txt));
     }
 
     public static void sendLine() {

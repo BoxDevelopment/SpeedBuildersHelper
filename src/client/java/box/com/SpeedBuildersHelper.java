@@ -35,18 +35,18 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private static final File CONFIG_FILE = new File(DIRECTORY, "speedbuildershelper.json");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	public static String playerName;
-	private List<BuildRecord> times = new ArrayList<>();
-	private List<BuildRecord> sessionTimes = new ArrayList<>();
+	private static List<BuildRecord> times = new ArrayList<>();
+	public static List<BuildRecord> sessionTimes = new ArrayList<>();
 	private static List<BuildRecord> sessionBestTimes = new ArrayList<>();
 
-	private String currentTheme = "";
-	private String currentDifficulty = "";
+	public static String currentTheme = "";
+	public static String currentDifficulty = "";
 	private String currentVariant = "";
 	private String lastTrackedTheme = "";
 	private String lastTrackedDifficulty = "";
 	private String lastTrackedVariant = "";
 	public static boolean Debug = false;
-	private boolean gameOverDisplayed = false;
+	public static boolean gameOverDisplayed = false;
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
 	private boolean variantDetectionActive = false;
@@ -101,14 +101,9 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 	private void onClientTick(MinecraftClient client) {
 		if (client.world == null || client.player == null || !Activated) return;
+		PlayerUtils.updateScoreboard(MinecraftInstance.mc);
 
-		List<String> sidebarLines = PlayerUtils.getSidebarLines();
-
-		String oldTheme = currentTheme;
-		String oldDifficulty = currentDifficulty;
-
-		for (String line : sidebarLines) {
-			PlayerUtils.debug(line);
+		for (String line : PlayerUtils.STRING_SCOREBOARD) {
 			if (line.startsWith("Theme: ")) {
 				currentTheme = line.substring(7).trim();
 			} else if (line.startsWith("Difficulty: ")) {
@@ -121,6 +116,9 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				}
 			}
 		}
+
+		String oldTheme = currentTheme;
+		String oldDifficulty = currentDifficulty;
 
 		boolean themeChanged = !currentTheme.equals(oldTheme) && !currentTheme.isEmpty();
 		boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
@@ -367,7 +365,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		sessionBestTimes.add(newRecord);
 	}
 
-	private void showSessionOverview() {
+	public static void showSessionOverview() {
 		if (sessionTimes.isEmpty()) {
 			PlayerUtils.sendMessage("§cNo builds completed this game.");
 			return;
@@ -411,7 +409,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		PlayerUtils.sendLine();
 	}
 
-	private double getBestTime(String theme, String difficulty, String variant) {
+	private static double getBestTime(String theme, String difficulty, String variant) {
 		for (BuildRecord record : times) {
 			if (record.theme.equalsIgnoreCase(theme) &&
 					record.difficulty.equalsIgnoreCase(difficulty) &&
