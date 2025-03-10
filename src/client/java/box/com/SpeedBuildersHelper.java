@@ -35,18 +35,18 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private static final File CONFIG_FILE = new File(DIRECTORY, "speedbuildershelper.json");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	public static String playerName;
-	private static List<BuildRecord> times = new ArrayList<>();
-	public static List<BuildRecord> sessionTimes = new ArrayList<>();
-	private static List<BuildRecord> sessionBestTimes = new ArrayList<>();
+	private List<BuildRecord> times = new ArrayList<>();
+	private List<BuildRecord> sessionTimes = new ArrayList<>();
+	private List<BuildRecord> sessionBestTimes = new ArrayList<>();
 
-	public static String currentTheme = "";
-	public static String currentDifficulty = "";
+	private String currentTheme = "";
+	private String currentDifficulty = "";
 	private String currentVariant = "";
 	private String lastTrackedTheme = "";
 	private String lastTrackedDifficulty = "";
 	private String lastTrackedVariant = "";
 	public static boolean Debug = false;
-	public static boolean gameOverDisplayed = false;
+	private boolean gameOverDisplayed = false;
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
 	private boolean variantDetectionActive = false;
@@ -84,13 +84,14 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 		ClientReceiveMessageEvents.GAME.register(this::onChat);
+		CMDS.setHelperInstance(this);
 		CMDS.register();
 
 		loadTimes();
 		loadConfig();
 	}
 
-	public static void clearSessionBestTimes() {
+	public void clearSessionBestTimes() {
 		sessionBestTimes.clear();
 		PlayerUtils.sendMessageWithPing("§eSession best times have been reset.");
 	}
@@ -103,12 +104,37 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		if (client.world == null || client.player == null || !Activated) return;
 		PlayerUtils.updateScoreboard(MinecraftInstance.mc);
 
+		String oldTheme = currentTheme;
+		String oldDifficulty = currentDifficulty;
+
+		//long currentTime = System.currentTimeMillis();
+		//long lastDebugTime = 0;
+		//if (currentTime - lastDebugTime > 10000) {
+		//	PlayerUtils.debug("--- SCOREBOARD CONTENTS ---");
+		//	for (String line : PlayerUtils.STRING_SCOREBOARD) {
+		//		PlayerUtils.debug("Line: " + line);
+		//	}
+		//	lastDebugTime = currentTime;
+		//}
+
+		boolean foundTheme = false;
+		boolean foundDifficulty = false;
+
 		for (String line : PlayerUtils.STRING_SCOREBOARD) {
-			if (line.startsWith("Theme: ")) {
-				currentTheme = line.substring(7).trim();
-			} else if (line.startsWith("Difficulty: ")) {
-				currentDifficulty = line.substring(11).trim();
-			} else if (line.contains("Game Over!")) {
+			if (line.toLowerCase().contains("theme:")) {
+				String extractedTheme = line.substring(line.toLowerCase().indexOf("theme:") + 6).trim();
+				currentTheme = extractedTheme;
+				foundTheme = true;
+				PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
+			}
+			else if (line.toLowerCase().contains("difficulty:")) {
+				String extractedDifficulty = line.substring(line.toLowerCase().indexOf("difficulty:") + 11).trim();
+				currentDifficulty = extractedDifficulty;
+				foundDifficulty = true;
+				PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
+			}
+			else if (line.contains("Game Over!")) {
+				PlayerUtils.debug("Game over detected in scoreboard");
 				if (!gameOverDisplayed) {
 					showSessionOverview();
 					sessionTimes.clear();
@@ -117,11 +143,16 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			}
 		}
 
-		String oldTheme = currentTheme;
-		String oldDifficulty = currentDifficulty;
 
 		boolean themeChanged = !currentTheme.equals(oldTheme) && !currentTheme.isEmpty();
 		boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
+
+		if (themeChanged) {
+			PlayerUtils.debug("THEME CHANGED from '" + oldTheme + "' to '" + currentTheme + "'");
+		}
+		if (difficultyChanged) {
+			PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
+		}
 
 		if (themeChanged && !currentTheme.isEmpty()) {
 			variantDetectionActive = true;
@@ -365,7 +396,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		sessionBestTimes.add(newRecord);
 	}
 
-	public static void showSessionOverview() {
+	public void showSessionOverview() {
 		if (sessionTimes.isEmpty()) {
 			PlayerUtils.sendMessage("§cNo builds completed this game.");
 			return;
@@ -390,7 +421,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 	}
 
-	public static void showSessionBestTimesOverview() {
+	public void showSessionBestTimesOverview() {
 		if (sessionBestTimes.isEmpty()) {
 			PlayerUtils.sendMessage("§cNo new best times recorded this session.");
 			return;
@@ -409,7 +440,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		PlayerUtils.sendLine();
 	}
 
-	private static double getBestTime(String theme, String difficulty, String variant) {
+	private double getBestTime(String theme, String difficulty, String variant) {
 		for (BuildRecord record : times) {
 			if (record.theme.equalsIgnoreCase(theme) &&
 					record.difficulty.equalsIgnoreCase(difficulty) &&

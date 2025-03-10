@@ -24,11 +24,18 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 public class CMDS {
     private static final File TIMES_FILE = new File(SpeedBuildersHelper.DIRECTORY, "speedbuilder_times.json");
     private static final Gson GSON = new Gson();
+    // Add reference to the SpeedBuildersHelper instance
+    private static SpeedBuildersHelper helperInstance;
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             registerCommands(dispatcher);
         });
+    }
+
+    // Method to set the helper instance
+    public static void setHelperInstance(SpeedBuildersHelper instance) {
+        helperInstance = instance;
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
@@ -52,6 +59,8 @@ public class CMDS {
                                 .executes(CMDS::showOverview))
                         .then(literal("reset")
                                 .executes(CMDS::resetSession))
+                        .then(literal("debugtest")
+                                .executes(CMDS::debugTest))
         );
 
         dispatcher.register(
@@ -72,6 +81,10 @@ public class CMDS {
         PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
         PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
         PlayerUtils.sendLine();
+        return 1;
+    }
+    private static int debugTest(CommandContext<FabricClientCommandSource> context) {
+        PlayerUtils.debug("TESTING DEBUG MESSAGE");
         return 1;
     }
 
@@ -164,12 +177,22 @@ public class CMDS {
     }
 
     private static int showOverview(CommandContext<FabricClientCommandSource> context) {
-        SpeedBuildersHelper.showSessionBestTimesOverview();
-        return 1;
+        if (helperInstance != null) {
+            helperInstance.showSessionBestTimesOverview();
+            return 1;
+        } else {
+            PlayerUtils.sendError("§cError: Helper instance not available");
+            return 0;
+        }
     }
 
     private static int resetSession(CommandContext<FabricClientCommandSource> context) {
-        SpeedBuildersHelper.clearSessionBestTimes();
-        return 1;
+        if (helperInstance != null) {
+            helperInstance.clearSessionBestTimes();
+            return 1;
+        } else {
+            PlayerUtils.sendError("§cError: Helper instance not available");
+            return 0;
+        }
     }
 }
