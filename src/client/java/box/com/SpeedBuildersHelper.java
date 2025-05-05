@@ -352,12 +352,14 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 					record.variant.equals(variant)) {
 
 				if (time < record.bestTime) {
+					double oldBest = record.bestTime;
 					record.bestTime = time;
+					double increase = PlayerUtils.round(record.bestTime - oldBest,1);
 					saveTimes();
 
 					String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
 					PlayerUtils.sendMessage("§a§lNew Best Time! " + cleanTheme + variantDisplay +
-							" (" + cleanDifficulty + "): §b" + time + "§7s");
+							" (" + cleanDifficulty + "): §b" + time + "§7s §b" + increase + "§7s");
 					isNewBest = true;
 				} else {
 					String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
