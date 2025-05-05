@@ -2,7 +2,7 @@
 A mod to assist in time keeping in speedbuilders
 
 # Usage
-Version: Forge 1.8.9
+Version: Fabric 1.21
 No known incompatabilities
 
 /sb or /speedbuilders - Opens the SpeedBuilders settings
