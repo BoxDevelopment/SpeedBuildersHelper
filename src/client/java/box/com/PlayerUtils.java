@@ -73,7 +73,7 @@ public class PlayerUtils implements MinecraftInstance {
             return;
         }
         final String txt = replace("§7[§dSpeedBuilders§7]§r " + message);
-        mc.player.sendMessage(Text.of(txt));
+        mc.player.sendMessage(Text.of(txt),false);
     }
 
     public static void sendMessageWithPing(String message) {
@@ -81,7 +81,7 @@ public class PlayerUtils implements MinecraftInstance {
             return;
         }
         final String txt = replace("§7[§dSpeedBuilders§7]§r " + message);
-        mc.player.sendMessage(Text.of(txt));
+        mc.player.sendMessage(Text.of(txt),false);
         PlayerUtils.ping();
     }
 
@@ -90,7 +90,7 @@ public class PlayerUtils implements MinecraftInstance {
             return;
         }
         final String txt = replace("§7[§dSpeedBuilders§7]§r " + message);
-        mc.player.sendMessage(Text.of(txt));
+        mc.player.sendMessage(Text.of(txt),false);
         PlayerUtils.error();
     }
 
@@ -107,7 +107,7 @@ public class PlayerUtils implements MinecraftInstance {
             return;
         }
         final String txt = replace("&7[&dDEBUG&7]&r " + message);
-        mc.player.sendMessage(Text.literal(txt));
+        mc.player.sendMessage(Text.literal(txt),false);
     }
 
     public static void sendLine() {

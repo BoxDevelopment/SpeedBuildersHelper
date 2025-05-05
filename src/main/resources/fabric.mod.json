@@ -3,13 +3,13 @@
 	"id": "speedbuildershelper",
 	"version": "${version}",
 	"name": "speedbuildershelper",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "SpeedBuilders helper",
 	"authors": [
-		"Me!"
+		"Boxeth"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "there is none",
+		"sources": "boxeth on discord"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/speedbuildershelper/icon.png",
@@ -24,7 +24,7 @@
 	},
 	"depends": {
 		"fabricloader": ">=0.16.10",
-		"minecraft": "~1.21",
+		"minecraft": ">=1.21 <1.22",
 		"java": ">=21",
 		"fabric-api": "*"
 	},
