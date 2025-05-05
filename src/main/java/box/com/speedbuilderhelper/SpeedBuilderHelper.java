@@ -186,8 +186,7 @@ public class SpeedBuilderHelper {
     }
 
     private boolean requiresVariantDetection(String theme) {
-        return theme.equalsIgnoreCase("Painting") ||
-                theme.equalsIgnoreCase("ClownFish");
+        return theme.equalsIgnoreCase("Painting") || theme.equalsIgnoreCase("ClownFish");
     }
 
     private String detectVariant(String theme) {
@@ -276,7 +275,7 @@ public class SpeedBuilderHelper {
                     record.variant.equals(variant)) {
 
                 String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-                PlayerUtils.sendMessage("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
+                PlayerUtils.sendMessage("§b" + cleanTheme +  "§7" + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
                         PlayerUtils.round(record.bestTime, 2) + "s");
                 return;
             }
@@ -326,12 +325,14 @@ public class SpeedBuilderHelper {
                     record.variant.equals(variant)) {
 
                 if (time < record.bestTime) {
+                    double oldBest = record.bestTime;
                     record.bestTime = time;
+                    double increase = PlayerUtils.round(record.bestTime - oldBest,1);
                     saveTimes();
 
                     String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
                     PlayerUtils.sendMessage("§a§lNew Best Time! " + cleanTheme + variantDisplay +
-                            " (" + cleanDifficulty + "): §b" + time + "§7s");
+                            " (" + cleanDifficulty + "): §b" + time + "§7s §b" + increase + "§7s");
                     isNewBest = true;
                 } else {
                     String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
