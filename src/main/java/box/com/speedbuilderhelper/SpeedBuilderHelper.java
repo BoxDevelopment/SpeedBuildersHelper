@@ -50,6 +50,7 @@ public class SpeedBuilderHelper {
     private String lastTrackedVariant = "";
     public static boolean Debug = false;
     private boolean gameOverDisplayed = false;
+    private boolean statsShown =  false;
     public static boolean Activated = false;
     public static boolean StartingMessage = false;
     private boolean variantDetectionActive = false;
@@ -143,6 +144,11 @@ public class SpeedBuilderHelper {
                 currentVariant = newVariant;
                 variantDetectionActive = false;
                 PlayerUtils.debug("Detected variant: " + currentVariant + " for theme: " + currentTheme);
+                showBestTime(currentTheme,currentDifficulty,currentVariant);
+                statsShown = true;
+                lastTrackedTheme = currentTheme;
+                lastTrackedDifficulty = currentDifficulty;
+                lastTrackedVariant  = currentVariant;
             }
 
             lastVariantScanTime = System.currentTimeMillis();
@@ -176,10 +182,13 @@ public class SpeedBuilderHelper {
             if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
                 if (!requiresVariantDetection(cleanText(currentTheme)) || !currentVariant.isEmpty()) {
                     showBestTime(currentTheme, currentDifficulty, currentVariant);
+                    statsShown = true;
 
                     lastTrackedTheme = currentTheme;
                     lastTrackedDifficulty = currentDifficulty;
                     lastTrackedVariant = currentVariant;
+                } else {
+                    statsShown = false; // wait for variant detection
                 }
             }
         }
