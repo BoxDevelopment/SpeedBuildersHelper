@@ -50,6 +50,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
 	private boolean variantDetectionActive = false;
+	private boolean statsShown = false;
 	private long lastVariantScanTime = 0;
 	private static final long VARIANT_SCAN_COOLDOWN = 1000;
 
@@ -107,31 +108,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		String oldTheme = currentTheme;
 		String oldDifficulty = currentDifficulty;
 
-		//long currentTime = System.currentTimeMillis();
-		//long lastDebugTime = 0;
-		//if (currentTime - lastDebugTime > 10000) {
-		//	PlayerUtils.debug("--- SCOREBOARD CONTENTS ---");
-		//	for (String line : PlayerUtils.STRING_SCOREBOARD) {
-		//		PlayerUtils.debug("Line: " + line);
-		//	}
-		//	lastDebugTime = currentTime;
-		//}
 
-		boolean foundTheme = false;
-		boolean foundDifficulty = false;
-
-		for (String line : PlayerUtils.STRING_SCOREBOARD) {
+        for (String line : PlayerUtils.STRING_SCOREBOARD) {
 			if (line.toLowerCase().contains("theme:")) {
 				String extractedTheme = line.substring(line.toLowerCase().indexOf("theme:") + 6).trim();
 				currentTheme = extractedTheme;
-				foundTheme = true;
-				PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
+                PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
 			}
 			else if (line.toLowerCase().contains("difficulty:")) {
 				String extractedDifficulty = line.substring(line.toLowerCase().indexOf("difficulty:") + 11).trim();
 				currentDifficulty = extractedDifficulty;
-				foundDifficulty = true;
-				PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
+                PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
 			}
 			else if (line.contains("Game Over!")) {
 				PlayerUtils.debug("Game over detected in scoreboard");
@@ -168,6 +155,14 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				currentVariant = newVariant;
 				variantDetectionActive = false;
 				PlayerUtils.debug("Detected variant: " + currentVariant + " for theme: " + currentTheme);
+
+				if (!statsShown && !currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
+					showBestTime(currentTheme,currentDifficulty,currentVariant);
+					lastTrackedTheme = currentTheme;
+					lastTrackedDifficulty = currentDifficulty;
+					lastTrackedVariant = currentVariant;
+					statsShown = true;
+				}
 			}
 
 			lastVariantScanTime = System.currentTimeMillis();
@@ -205,6 +200,9 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 					lastTrackedTheme = currentTheme;
 					lastTrackedDifficulty = currentDifficulty;
 					lastTrackedVariant = currentVariant;
+					statsShown = true;
+				} else {
+					statsShown = false;
 				}
 			}
 		}
