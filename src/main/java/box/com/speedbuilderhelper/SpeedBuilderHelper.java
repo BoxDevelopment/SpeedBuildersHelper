@@ -212,7 +212,7 @@ public class SpeedBuilderHelper {
     private String detectPaintingVariant() {
         boolean hasSpruce = checkForBlockInBuildArea("planks");
 
-        return hasSpruce ? "Horizontal" : "Vertical";
+        return hasSpruce ? "Vertical" : "Horizontal";
     }
 
     private String detectClownFishVariant() {
