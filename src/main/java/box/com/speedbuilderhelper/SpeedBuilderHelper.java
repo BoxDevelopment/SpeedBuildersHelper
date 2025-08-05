@@ -1,6 +1,5 @@
 package box.com.speedbuilderhelper;
 
-import box.com.speedbuilderhelper.utils.PlayerUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -27,19 +26,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.util.BlockPos;
 
- @Mod(modid = SpeedBuilderHelper.MODID, version = SpeedBuilderHelper.VERSION)
+@Mod(modid = SpeedBuilderHelper.MODID, version = SpeedBuilderHelper.VERSION)
 public class SpeedBuilderHelper {
 
     public static final String MODID = "speedbuilderhelper";
     public static final String VERSION = "1.1";
-
-    private static SpeedBuilderHelper instance;
 
     public static final Logger LOG = LogManager.getLogger("SPEEDBUILDERS");
     public final static File Directory = new File(Minecraft.getMinecraft().mcDataDir + File.separator + "SpeedBuildersHelper");
     private static final File TIMES_FILE = new File(Directory,"speedbuilder_times.json");
     private static final File CONFIG_FILE = new File(Directory,"speedbuildershelper.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static String playerName;
     private List<BuildRecord> times = new ArrayList<>();
     private List<BuildRecord> sessionTimes = new ArrayList<>();
     private List<BuildRecord> sessionBestTimes = new ArrayList<>();
@@ -85,7 +83,6 @@ public class SpeedBuilderHelper {
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        instance = this;
         if (!Directory.exists()) {
             Directory.mkdirs();
         }
@@ -299,7 +296,7 @@ public class SpeedBuilderHelper {
 
     private String cleanText(String text) {
         return text.replaceAll("§.", "")
-                .replaceAll("[^\\u0000-\\u007F]", "")
+                .replaceAll("[^\\x00-\\x7F]", "")
                 .replaceFirst("(?i)Theme: ", "")
                 .replaceFirst("(?i)Difficulty: ", "")
                 .trim();
@@ -307,14 +304,14 @@ public class SpeedBuilderHelper {
 
     @SubscribeEvent
     public void onChat(ClientChatReceivedEvent event) {
-        if (!Activated || Minecraft.getMinecraft().thePlayer == null) {
+        if (!Activated) {
             return;
         }
         String message = event.message.getUnformattedText();
 
         Pattern pattern = Pattern.compile("(.*) got a perfect build in (.*)s!");
         Matcher matcher = pattern.matcher(message);
-        if (matcher.find() && matcher.group(1).equals(Minecraft.getMinecraft().thePlayer.getName())) {
+        if (matcher.find() && matcher.group(1).equals(playerName)) {
             double time = Double.parseDouble(matcher.group(2));
             boolean isNewBestTime = updateTime(currentTheme, currentDifficulty, currentVariant, time);
 
@@ -516,6 +513,7 @@ public class SpeedBuilderHelper {
             Activated = true;
             StartingMessage = true;
             Debug = false;
+            playerName = "";
             saveConfig();
             LOG.info("Created Config File " + CONFIG_FILE.getAbsolutePath());
             return;
@@ -528,10 +526,12 @@ public class SpeedBuilderHelper {
                 Activated = json.has("activated") ? json.get("activated").getAsBoolean() : true;
                 StartingMessage = json.has("startingMessage") ? json.get("startingMessage").getAsBoolean() : true;
                 Debug = json.has("debug") ? json.get("debug").getAsBoolean() : false;
+                playerName = json.has("playerName") ? json.get("playerName").getAsString() : "";
 
                 LOG.info("Loaded config: activated=" + Activated +
                         ", startingMessage=" + StartingMessage +
-                        ", debug=" + Debug);
+                        ", debug=" + Debug +
+                        ", playerName=" + playerName);
             }
         } catch (IOException e) {
             LOG.error("Failed to read config file: " + e.getMessage());
@@ -545,22 +545,16 @@ public class SpeedBuilderHelper {
             json.addProperty("activated", Activated);
             json.addProperty("startingMessage", StartingMessage);
             json.addProperty("debug", Debug);
+            json.addProperty("playerName", playerName != null ? playerName : "");
 
             GSON.toJson(json, writer);
             LOG.info("Saved config: activated=" + Activated +
                     ", startingMessage=" + StartingMessage +
-                    ", debug=" + Debug);
+                    ", debug=" + Debug +
+                    ", playerName=" + playerName);
         } catch (IOException e) {
             LOG.error("Failed to save config file: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    public static SpeedBuilderHelper getInstance() {
-        return instance;
-    }
-
-    public List<BuildRecord> getTimes() {
-        return times;
     }
 }

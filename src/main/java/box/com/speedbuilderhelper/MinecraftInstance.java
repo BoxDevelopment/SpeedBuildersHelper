@@ -1,4 +1,4 @@
-package box.com.speedbuilderhelper.utils;
+package box.com.speedbuilderhelper;
 
 import net.minecraft.client.Minecraft;
 
