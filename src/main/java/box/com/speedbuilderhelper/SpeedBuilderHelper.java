@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 public class SpeedBuilderHelper {
 
     public static final String MODID = "speedbuilderhelper";
-    public static final String VERSION = "1.1";
+    public static final String VERSION = "2.0";
 
     public static final Logger LOG = LogManager.getLogger("SPEEDBUILDERS");
     public final static File DIRECTORY = new File(Minecraft.getMinecraft().mcDataDir + File.separator + "SpeedBuildersHelper");
