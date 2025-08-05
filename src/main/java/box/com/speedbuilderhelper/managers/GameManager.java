@@ -8,95 +8,76 @@ import java.util.List;
 
 public class GameManager {
 
+    private final TimeManager timeManager;
     private String currentTheme = "";
     private String currentDifficulty = "";
     private String currentVariant = "";
-    private String lastTrackedTheme = "";
-    private String lastTrackedDifficulty = "";
-    private String lastTrackedVariant = "";
-    private boolean gameOverDisplayed = false;
     private boolean variantDetectionActive = false;
     private long lastVariantScanTime = 0;
     private static final long VARIANT_SCAN_COOLDOWN = 1000;
 
+    public GameManager(TimeManager timeManager) {
+        this.timeManager = timeManager;
+    }
+
     public void onTick() {
         List<String> sidebarLines = PlayerUtils.getSidebarLines();
 
-        String oldTheme = currentTheme;
-        String oldDifficulty = currentDifficulty;
+        String newTheme = "";
+        String newDifficulty = "";
 
         for (String line : sidebarLines) {
             if (line.startsWith("Theme: ")) {
-                currentTheme = line.substring(7).trim();
+                newTheme = cleanText(line.substring(7));
             } else if (line.startsWith("Difficulty: ")) {
-                currentDifficulty = line.substring(11).trim();
-            } else if (line.contains("Game Over!")) {
-                if (!gameOverDisplayed) {
-                    // Fire game over event
-                    gameOverDisplayed = true;
-                }
+                newDifficulty = cleanText(line.substring(11));
             }
         }
 
-        boolean themeChanged = !currentTheme.equals(oldTheme) && !currentTheme.isEmpty();
-        boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
+        if (!newTheme.isEmpty() && !newTheme.equals(currentTheme)) {
+            currentTheme = newTheme;
+            currentVariant = "";
+            PlayerUtils.debug("Theme changed to: " + currentTheme);
 
-        if (themeChanged) {
-            variantDetectionActive = true;
-            lastVariantScanTime = System.currentTimeMillis();
-            PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
+            if (requiresVariantDetection(currentTheme)) {
+                variantDetectionActive = true;
+                lastVariantScanTime = System.currentTimeMillis();
+                PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
+            } else {
+                variantDetectionActive = false;
+                displayBestTime();
+            }
+        }
+
+        if (!newDifficulty.isEmpty() && !newDifficulty.equals(currentDifficulty)) {
+            currentDifficulty = newDifficulty;
+            PlayerUtils.debug("Difficulty changed to: " + currentDifficulty);
+            if (!variantDetectionActive) {
+                displayBestTime();
+            }
         }
 
         if (variantDetectionActive && System.currentTimeMillis() - lastVariantScanTime > VARIANT_SCAN_COOLDOWN) {
-            String newVariant = detectVariant(cleanText(currentTheme));
-            if (!newVariant.isEmpty()) {
-                currentVariant = newVariant;
+            String detectedVariant = detectVariant(currentTheme);
+            if (!detectedVariant.isEmpty()) {
+                currentVariant = detectedVariant;
                 variantDetectionActive = false;
                 PlayerUtils.debug("Detected variant: " + currentVariant + " for theme: " + currentTheme);
-                // Fire theme changed event
-                lastTrackedTheme = currentTheme;
-                lastTrackedDifficulty = currentDifficulty;
-                lastTrackedVariant = currentVariant;
+                displayBestTime();
             }
-
             lastVariantScanTime = System.currentTimeMillis();
-
-            if (System.currentTimeMillis() - lastVariantScanTime > 10000) {
-                variantDetectionActive = false;
-                PlayerUtils.debug("Stopped variant detection for theme: " + currentTheme);
-            }
         }
+    }
 
-        if ((themeChanged || difficultyChanged) &&
-                (!currentTheme.equals(lastTrackedTheme) ||
-                        !currentDifficulty.equals(lastTrackedDifficulty) ||
-                        !currentVariant.equals(lastTrackedVariant))) {
+    private void displayBestTime() {
+        if (currentTheme.isEmpty() || currentDifficulty.isEmpty()) return;
 
-            gameOverDisplayed = false;
-
-            if (themeChanged) {
-                currentVariant = "";
-                PlayerUtils.debug("Theme: " + currentTheme);
-                variantDetectionActive = requiresVariantDetection(cleanText(currentTheme));
-                if (variantDetectionActive) {
-                    lastVariantScanTime = System.currentTimeMillis();
-                    PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
-                }
-            }
-            if (difficultyChanged) {
-                PlayerUtils.debug("Difficulty: " + currentDifficulty);
-            }
-
-            if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
-                if (!requiresVariantDetection(cleanText(currentTheme)) || !currentVariant.isEmpty()) {
-                    // Fire theme changed event
-                    lastTrackedTheme = currentTheme;
-                    lastTrackedDifficulty = currentDifficulty;
-                    lastTrackedVariant = currentVariant;
-                } else {
-                    // wait for variant detection
-                }
-            }
+        double bestTime = timeManager.getBestTime(currentTheme, currentDifficulty, currentVariant);
+        if (bestTime != Double.MAX_VALUE) {
+            String variantDisplay = currentVariant.isEmpty() ? "" : " (" + currentVariant + ")";
+            PlayerUtils.sendMessage("§b" + currentTheme + variantDisplay + " §7(" + currentDifficulty + ") §eBest Time: §a" + PlayerUtils.round(bestTime, 2) + "s");
+        } else {
+            PlayerUtils.sendMessage("§b" + currentTheme + " §7(" + currentDifficulty + ") - §eNo best time recorded.");
         }
     }
 
@@ -174,11 +155,7 @@ public class GameManager {
     }
 
     private String cleanText(String text) {
-        return text.replaceAll("§.", "")
-                .replaceAll("[^\\u0000-\\u007F]", "")
-                .replaceFirst("(?i)Theme: ", "")
-                .replaceFirst("(?i)Difficulty: ", "")
-                .trim();
+        return text.replaceAll("§[0-9a-fk-or]", "").trim();
     }
 
 

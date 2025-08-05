@@ -17,7 +17,7 @@ import java.util.Map;
 public class TimeManager {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final File TIMES_FILE = new File(SpeedBuilderHelper.DIRECTORY, "speedbuilder_times.json");
+    private static final File TIMES_FILE = new File(SpeedBuilderHelper.Directory, "speedbuilder_times.json");
 
     private final Logger logger;
     private List<BuildRecord> times = new ArrayList<>();

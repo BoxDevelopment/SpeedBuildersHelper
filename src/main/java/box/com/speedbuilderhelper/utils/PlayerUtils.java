@@ -100,7 +100,7 @@ public class PlayerUtils implements MinecraftInstance
     }
 
     public static String replace(String text) {
-        return text.replace("&", "§").replace("%and", "&");
+        return text.replace("&", "§");
     }
 
     public static double round(double number, int decimals) {
