@@ -5,10 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
@@ -17,10 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,20 +36,30 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private List<BuildRecord> sessionTimes = new ArrayList<>();
 	private List<BuildRecord> sessionBestTimes = new ArrayList<>();
 
+	public List<BlockPos> platformPositions = Arrays.asList(
+			new BlockPos(-15, 72, 45),
+			new BlockPos(18, 72, 45),
+			new BlockPos(45, 72, 16),
+			new BlockPos(45, 72, -17),
+			new BlockPos(16, 72, -44),
+			new BlockPos(-17, 72, -44),
+			new BlockPos(-44, 72, -15),
+			new BlockPos(-44, 72, 18)
+	);
+
 	private String currentTheme = "";
 	private String currentDifficulty = "";
 	private String currentVariant = "";
 	private String lastTrackedTheme = "";
 	private String lastTrackedDifficulty = "";
 	private String lastTrackedVariant = "";
+	private BlockPos closestPlatform = null;
+	private int lastGameState = -1;
+
 	public static boolean Debug = false;
 	private boolean gameOverDisplayed = false;
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
-	private boolean variantDetectionActive = false;
-	private boolean statsShown = false;
-	private long lastVariantScanTime = 0;
-	private static final long VARIANT_SCAN_COOLDOWN = 1000;
 
 	public static class BuildRecord {
 		String theme;
@@ -108,19 +115,28 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		String oldTheme = currentTheme;
 		String oldDifficulty = currentDifficulty;
 
+		int gameState = getGameState();
 
-        for (String line : PlayerUtils.STRING_SCOREBOARD) {
+		// Detect platform once when round starts
+		if (gameState == 2 && lastGameState != 2) {
+			detectClosestPlatform();
+		}
+
+		// Clear platform when round ends
+		if (gameState != 2 && lastGameState == 2) {
+			closestPlatform = null;
+		}
+
+		for (String line : PlayerUtils.STRING_SCOREBOARD) {
 			if (line.toLowerCase().contains("theme:")) {
 				String extractedTheme = line.substring(line.toLowerCase().indexOf("theme:") + 6).trim();
 				currentTheme = extractedTheme;
-                PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
-			}
-			else if (line.toLowerCase().contains("difficulty:")) {
+				PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
+			} else if (line.toLowerCase().contains("difficulty:")) {
 				String extractedDifficulty = line.substring(line.toLowerCase().indexOf("difficulty:") + 11).trim();
 				currentDifficulty = extractedDifficulty;
-                PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
-			}
-			else if (line.contains("Game Over!")) {
+				PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
+			} else if (line.contains("Game Over!")) {
 				PlayerUtils.debug("Game over detected in scoreboard");
 				if (!gameOverDisplayed) {
 					showSessionOverview();
@@ -130,47 +146,28 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			}
 		}
 
-
 		boolean themeChanged = !currentTheme.equals(oldTheme) && !currentTheme.isEmpty();
 		boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
 
 		if (themeChanged) {
 			PlayerUtils.debug("THEME CHANGED from '" + oldTheme + "' to '" + currentTheme + "'");
-		}
-		if (difficultyChanged) {
-			PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
-		}
 
-		if (themeChanged && !currentTheme.isEmpty()) {
-			variantDetectionActive = true;
-			lastVariantScanTime = System.currentTimeMillis();
-			PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
-		}
+			// Detect variant immediately when theme changes
+			if (gameState == 2) {
+				currentVariant = getVariant();
+				PlayerUtils.debug("Detected variant: '" + currentVariant + "' for theme: " + currentTheme);
 
-		if (variantDetectionActive &&
-				System.currentTimeMillis() - lastVariantScanTime > VARIANT_SCAN_COOLDOWN) {
-
-			String newVariant = detectVariant(cleanText(currentTheme));
-			if (!newVariant.isEmpty()) {
-				currentVariant = newVariant;
-				variantDetectionActive = false;
-				PlayerUtils.debug("Detected variant: " + currentVariant + " for theme: " + currentTheme);
-
-				if (!statsShown && !currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
-					showBestTime(currentTheme,currentDifficulty,currentVariant);
+				if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
+					showBestTime(currentTheme, currentDifficulty, currentVariant);
 					lastTrackedTheme = currentTheme;
 					lastTrackedDifficulty = currentDifficulty;
 					lastTrackedVariant = currentVariant;
-					statsShown = true;
 				}
 			}
+		}
 
-			lastVariantScanTime = System.currentTimeMillis();
-
-			if (System.currentTimeMillis() - lastVariantScanTime > 10000) {
-				variantDetectionActive = false;
-				PlayerUtils.debug("Stopped variant detection for theme: " + currentTheme);
-			}
+		if (difficultyChanged) {
+			PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
 		}
 
 		if ((themeChanged || difficultyChanged) &&
@@ -180,112 +177,108 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 			gameOverDisplayed = false;
 
-			if (themeChanged) {
-				currentVariant = "";
-				PlayerUtils.debug("Theme: " + currentTheme);
-				variantDetectionActive = requiresVariantDetection(cleanText(currentTheme));
-				if (variantDetectionActive) {
-					lastVariantScanTime = System.currentTimeMillis();
-					PlayerUtils.debug("Starting variant detection for theme: " + currentTheme);
-				}
-			}
-			if (difficultyChanged) {
-				PlayerUtils.debug("Difficulty: " + currentDifficulty);
-			}
-
 			if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
-				if (!requiresVariantDetection(cleanText(currentTheme)) || !currentVariant.isEmpty()) {
-					showBestTime(currentTheme, currentDifficulty, currentVariant);
-
-					lastTrackedTheme = currentTheme;
-					lastTrackedDifficulty = currentDifficulty;
-					lastTrackedVariant = currentVariant;
-					statsShown = true;
-				} else {
-					statsShown = false;
-				}
+				showBestTime(currentTheme, currentDifficulty, currentVariant);
+				lastTrackedTheme = currentTheme;
+				lastTrackedDifficulty = currentDifficulty;
+				lastTrackedVariant = currentVariant;
 			}
 		}
+
+		lastGameState = gameState;
 	}
 
-	private boolean requiresVariantDetection(String theme) {
-		return theme.equalsIgnoreCase("Painting") ||
-				theme.equalsIgnoreCase("ClownFish");
-	}
-
-	private String detectVariant(String theme) {
-		if (theme.equalsIgnoreCase("Painting")) {
-			return detectPaintingVariant();
+	private int getGameState() {
+		// Game state detection from scoreboard
+		// 0 = lobby, 1 = waiting, 2 = in game
+		for (String line : PlayerUtils.STRING_SCOREBOARD) {
+			String clean = line.replaceAll("§.", "").trim();
+			if (clean.contains("Theme:") || clean.contains("Difficulty:")) {
+				return 2; // In game
+			}
 		}
-		else if (theme.equalsIgnoreCase("ClownFish")) {
-			return detectClownFishVariant();
+		return 0; // Default to lobby
+	}
+
+	private void detectClosestPlatform() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.player == null) return;
+
+		BlockPos playerPos = client.player.getBlockPos();
+		double closestDist = Double.MAX_VALUE;
+		BlockPos nearest = null;
+
+		for (BlockPos platform : platformPositions) {
+			double dist = playerPos.getSquaredDistance(platform);
+			if (dist < closestDist) {
+				closestDist = dist;
+				nearest = platform;
+			}
+		}
+
+		if (nearest != null) {
+			closestPlatform = nearest;
+			PlayerUtils.debug("§bClosest platform: §f" + String.format("X=%d, Y=%d, Z=%d",
+					nearest.getX(), nearest.getY(), nearest.getZ()));
+		}
+	}
+
+	private String getVariant() {
+		if (closestPlatform == null || currentTheme == null || currentTheme.isEmpty()) {
+			return "";
+		}
+
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.world == null) return "";
+
+		String cleanTheme = cleanText(currentTheme).toLowerCase();
+
+		switch (cleanTheme) {
+			case "painting":
+				return getPaintingVariant();
+			case "clownfish":
+				return getClownfishVariant();
+			default:
+				return "";
+		}
+	}
+
+	private String getPaintingVariant() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.world == null) return "";
+
+		BlockPos checkPos = closestPlatform.up(2);
+		Block block = client.world.getBlockState(checkPos).getBlock();
+		String blockId = block.getTranslationKey().toLowerCase();
+
+		PlayerUtils.debug("Checking painting variant at " + checkPos + ", block: " + blockId);
+
+		if (blockId.contains("lime_wool")) {
+			return "Horizontal";
+		} else if (blockId.contains("yellow_wool")) {
+			return "Vertical";
 		}
 
 		return "";
 	}
 
-	private String detectPaintingVariant() {
-		boolean hasSpruce = checkForBlockInBuildArea("spruce_planks");
-
-		return hasSpruce ? "Horizontal" : "Vertical";
-	}
-
-	private String detectClownFishVariant() {
-		int blackWoolCount = countBlocksInBuildArea("black_wool");
-
-		return blackWoolCount == 1 ? "Small" : "Medium";
-	}
-
-	private boolean checkForBlockInBuildArea(String blockId) {
+	private String getClownfishVariant() {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.player == null || client.world == null) return false;
+		if (client.world == null) return "";
 
-		int px = (int) client.player.getX();
-		int py = (int) client.player.getY();
-		int pz = (int) client.player.getZ();
+		BlockPos checkPos = closestPlatform.up(2);
+		Block block = client.world.getBlockState(checkPos).getBlock();
 
-		int radius = 15;
+		PlayerUtils.debug("Checking clownfish variant at " + checkPos + ", block: " + block.getTranslationKey());
 
-		for (int x = px - radius; x <= px + radius; x++) {
-			for (int y = py - radius; y <= py + radius; y++) {
-				for (int z = pz - radius; z <= pz + radius; z++) {
-					BlockPos pos = new BlockPos(x, y, z);
-					Block block = client.world.getBlockState(pos).getBlock();
-					if (block.getTranslationKey().toLowerCase().contains(blockId.toLowerCase())) {
-						return true;
-					}
-				}
-			}
+		// Check using block comparison for better reliability
+		if (block == Blocks.ORANGE_STAINED_GLASS || block == Blocks.ORANGE_STAINED_GLASS_PANE) {
+			return "Medium";
+		} else if (block == Blocks.ORANGE_TERRACOTTA) {
+			return "Small";
 		}
 
-		return false;
-	}
-
-	private int countBlocksInBuildArea(String blockId) {
-		int count = 0;
-
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.player == null || client.world == null) return count;
-
-		int px = (int) client.player.getX();
-		int py = (int) client.player.getY();
-		int pz = (int) client.player.getZ();
-
-		int radius = 15;
-
-		for (int x = px - radius; x <= px + radius; x++) {
-			for (int y = py - radius; y <= py + radius; y++) {
-				for (int z = pz - radius; z <= pz + radius; z++) {
-					BlockPos pos = new BlockPos(x, y, z);
-					Block block = client.world.getBlockState(pos).getBlock();
-					if (block.getTranslationKey().toLowerCase().contains(blockId.toLowerCase())) {
-						count++;
-					}
-				}
-			}
-		}
-
-		return count;
+		return "";
 	}
 
 	private void showBestTime(String theme, String difficulty, String variant) {
@@ -352,7 +345,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				if (time < record.bestTime) {
 					double oldBest = record.bestTime;
 					record.bestTime = time;
-					double increase = PlayerUtils.round(record.bestTime - oldBest,1);
+					double increase = PlayerUtils.round(record.bestTime - oldBest, 1);
 					saveTimes();
 
 					String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
@@ -466,7 +459,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 
 		try (Reader reader = new FileReader(TIMES_FILE)) {
-			Type type = new TypeToken<HashMap<String, List<BuildRecord>>>(){}.getType();
+			Type type = new TypeToken<HashMap<String, List<BuildRecord>>>() {
+			}.getType();
 			Map<String, List<BuildRecord>> data = GSON.fromJson(reader, type);
 			if (data != null && data.containsKey("themes")) {
 				times = data.get("themes");
