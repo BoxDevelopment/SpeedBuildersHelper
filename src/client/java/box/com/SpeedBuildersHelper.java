@@ -249,13 +249,12 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		BlockPos checkPos = closestPlatform.up(2);
 		Block block = client.world.getBlockState(checkPos).getBlock();
-		String blockId = block.getTranslationKey().toLowerCase();
 
-		PlayerUtils.debug("Checking painting variant at " + checkPos + ", block: " + blockId);
+		PlayerUtils.debug("Checking painting variant at " + checkPos + ", block: " + block);
 
-		if (blockId.contains("lime_wool")) {
+		if (block == Blocks.LIME_WOOL) {
 			return "Horizontal";
-		} else if (blockId.contains("yellow_wool")) {
+		} else if (block == Blocks.YELLOW_WOOL) {
 			return "Vertical";
 		}
 
@@ -269,9 +268,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		BlockPos checkPos = closestPlatform.up(2);
 		Block block = client.world.getBlockState(checkPos).getBlock();
 
-		PlayerUtils.debug("Checking clownfish variant at " + checkPos + ", block: " + block.getTranslationKey());
+		PlayerUtils.debug("Checking clownfish variant at " + checkPos + ", block: " + block);
 
-		// Check using block comparison for better reliability
 		if (block == Blocks.ORANGE_STAINED_GLASS || block == Blocks.ORANGE_STAINED_GLASS_PANE) {
 			return "Medium";
 		} else if (block == Blocks.ORANGE_TERRACOTTA) {
