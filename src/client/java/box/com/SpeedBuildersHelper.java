@@ -131,11 +131,11 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			if (line.toLowerCase().contains("theme:")) {
 				String extractedTheme = line.substring(line.toLowerCase().indexOf("theme:") + 6).trim();
 				currentTheme = extractedTheme;
-				PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
+				//PlayerUtils.debug("Found theme: '" + currentTheme + "' from line: '" + line + "'");
 			} else if (line.toLowerCase().contains("difficulty:")) {
 				String extractedDifficulty = line.substring(line.toLowerCase().indexOf("difficulty:") + 11).trim();
 				currentDifficulty = extractedDifficulty;
-				PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
+				//PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
 			} else if (line.contains("Game Over!")) {
 				PlayerUtils.debug("Game over detected in scoreboard");
 				if (!gameOverDisplayed) {
@@ -150,12 +150,12 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
 
 		if (themeChanged) {
-			PlayerUtils.debug("THEME CHANGED from '" + oldTheme + "' to '" + currentTheme + "'");
+			//PlayerUtils.debug("THEME CHANGED from '" + oldTheme + "' to '" + currentTheme + "'");
 
 			// Detect variant immediately when theme changes
 			if (gameState == 2) {
 				currentVariant = getVariant();
-				PlayerUtils.debug("Detected variant: '" + currentVariant + "' for theme: " + currentTheme);
+				//PlayerUtils.debug("Detected variant: '" + currentVariant + "' for theme: " + currentTheme);
 
 				if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
 					showBestTime(currentTheme, currentDifficulty, currentVariant);
@@ -167,7 +167,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 
 		if (difficultyChanged) {
-			PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
+			//PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
 		}
 
 		if ((themeChanged || difficultyChanged) &&
@@ -225,11 +225,11 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 	private String getVariant() {
 		if (closestPlatform == null || currentTheme == null || currentTheme.isEmpty()) {
-			return "";
+			return "error";
 		}
 
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) return "";
+		if (client.world == null) return "error";
 
 		String cleanTheme = cleanText(currentTheme).toLowerCase();
 
@@ -250,14 +250,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		BlockPos checkPos = closestPlatform.up(2);
 		Block block = client.world.getBlockState(checkPos).getBlock();
 
-		PlayerUtils.debug("Checking painting variant at " + checkPos + ", block: " + block);
+		PlayerUtils.debug("Checking painting variant at " + checkPos);
 
 		if (block == Blocks.LIME_WOOL) {
+			PlayerUtils.debug("Found lime wool - Horizontal variant");
 			return "Horizontal";
 		} else if (block == Blocks.YELLOW_WOOL) {
+			PlayerUtils.debug("Found yellow wool - Vertical variant");
 			return "Vertical";
 		}
 
+		PlayerUtils.debug("No matching painting variant found");
 		return "";
 	}
 
@@ -268,14 +271,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		BlockPos checkPos = closestPlatform.up(2);
 		Block block = client.world.getBlockState(checkPos).getBlock();
 
-		PlayerUtils.debug("Checking clownfish variant at " + checkPos + ", block: " + block);
+		PlayerUtils.debug("Checking clownfish variant at " + checkPos);
 
 		if (block == Blocks.ORANGE_STAINED_GLASS || block == Blocks.ORANGE_STAINED_GLASS_PANE) {
+			PlayerUtils.debug("Found orange glass - Medium variant");
 			return "Medium";
 		} else if (block == Blocks.ORANGE_TERRACOTTA) {
+			PlayerUtils.debug("Found orange terracotta - Small variant");
 			return "Small";
 		}
 
+		PlayerUtils.debug("No matching clownfish variant found");
 		return "";
 	}
 

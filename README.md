@@ -2,7 +2,7 @@
 A mod to assist in time keeping in speedbuilders
 
 # Usage
-Version: Fabric 1.21
+Version: Fabric 1.21.11
 No known incompatabilities
 
 /sb or /speedbuilders - Opens the SpeedBuilders settings

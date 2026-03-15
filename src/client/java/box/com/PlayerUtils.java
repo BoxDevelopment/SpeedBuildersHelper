@@ -29,9 +29,9 @@ public class PlayerUtils implements MinecraftInstance {
             STRING_SCOREBOARD.clear();
 
             ClientPlayerEntity player = client.player;
-            if (player == null) return;
+            if (player == null || client.world == null) return;
 
-            Scoreboard scoreboard = player.getScoreboard();
+            Scoreboard scoreboard = client.world.getScoreboard();
             ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.FROM_ID.apply(1));
             ObjectArrayList<Text> textLines = new ObjectArrayList<>();
             ObjectArrayList<String> stringLines = new ObjectArrayList<>();
