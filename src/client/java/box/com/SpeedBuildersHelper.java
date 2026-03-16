@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -17,14 +18,24 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.lang.reflect.Type;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SpeedBuildersHelper implements ClientModInitializer {
 
-	public static final String MODID = "speedbuilderhelper";
+	public static final String MODID = "speedbuildershelper";
 	public static final String VERSION = "1.1";
+	private static final String VERSION_CHECK_URL = "https://raw.githubusercontent.com/BoxDevelopment/SpeedBuildersHelper/refs/heads/1.21/version.txt";
+	private static final HttpClient VERSION_HTTP_CLIENT = HttpClient.newBuilder()
+			.connectTimeout(Duration.ofSeconds(5))
+			.build();
 
 	public static final Logger LOG = LogManager.getLogger("SPEEDBUILDERS");
 	public static File DIRECTORY = new File(MinecraftClient.getInstance().runDirectory, "SpeedBuildersHelper");
@@ -60,6 +71,11 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private boolean gameOverDisplayed = false;
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
+	private volatile boolean versionCheckFinished = false;
+	private volatile boolean outdatedVersionDetected = false;
+	private volatile boolean versionWarningSent = false;
+	private volatile String latestRemoteVersion = "";
+	private String localModVersion = VERSION;
 
 	public static class BuildRecord {
 		String theme;
@@ -97,6 +113,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		loadTimes();
 		loadConfig();
+		startVersionCheck();
 	}
 
 	public void clearSessionBestTimes() {
@@ -109,6 +126,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	}
 
 	private void onClientTick(MinecraftClient client) {
+		handleVersionWarning(client);
+
 		if (client.world == null || client.player == null || !Activated) return;
 		PlayerUtils.updateScoreboard(MinecraftInstance.mc);
 
@@ -186,6 +205,74 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 
 		lastGameState = gameState;
+	}
+
+	private void handleVersionWarning(MinecraftClient client) {
+		if (client.world == null || client.player == null) {
+			return;
+		}
+
+		if (!versionCheckFinished || !outdatedVersionDetected || versionWarningSent) {
+			return;
+		}
+
+		PlayerUtils.sendMessageWithPing("§cYou are using an outdated mod version. §7Current: §f"
+				+ localModVersion + " §7Latest: §f" + latestRemoteVersion);
+		versionWarningSent = true;
+	}
+
+	private void startVersionCheck() {
+		localModVersion = resolveLocalModVersion();
+
+		CompletableFuture.supplyAsync(this::fetchRemoteVersion)
+				.thenAccept(remoteVersion -> {
+					versionCheckFinished = true;
+					if (remoteVersion.isEmpty()) {
+						return;
+					}
+
+					latestRemoteVersion = remoteVersion;
+					outdatedVersionDetected = !latestRemoteVersion.equals(localModVersion);
+					if (outdatedVersionDetected) {
+						LOG.info("Update available: local={} latest={}", localModVersion, latestRemoteVersion);
+					}
+				})
+				.exceptionally(error -> {
+					versionCheckFinished = true;
+					LOG.warn("Version check failed", error);
+					return null;
+				});
+	}
+
+	private String resolveLocalModVersion() {
+		return FabricLoader.getInstance().getModContainer(MODID)
+				.map(container -> container.getMetadata().getVersion().getFriendlyString())
+				.orElse(VERSION);
+	}
+
+	private String fetchRemoteVersion() {
+		try {
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create(VERSION_CHECK_URL))
+					.timeout(Duration.ofSeconds(5))
+					.GET()
+					.build();
+
+			HttpResponse<String> response = VERSION_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() != 200 || response.body() == null) {
+				LOG.warn("Version check request failed with status {}", response.statusCode());
+				return "";
+			}
+
+			return response.body().replace("\uFEFF", "").trim();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			LOG.warn("Version check interrupted", e);
+			return "";
+		} catch (Exception e) {
+			LOG.warn("Unable to fetch remote version", e);
+			return "";
+		}
 	}
 
 	private int getGameState() {
