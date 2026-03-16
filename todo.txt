@@ -1,9 +1,7 @@
 # Todo list
 PB's per session and wins per session. command and hud thing (focus on optimisation on this)
-autoname detection (no more /setname cuz thats shit)
 goals? - user sets goal /speedbuilders goals {build} {variant} {time} -- if achieved a custom message appears -- appears in hud?
 shows goal in chat if build has it (when detected)
-/sb instead of /speedbuilders (alias)
 config menu using modmenu replacing commands maybe a custom hud (if i can be bothered)
 hud customization: shows best time name of build varaint etc. optional to enable / disable replaces chat.
 

@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
@@ -76,6 +77,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private volatile boolean versionWarningSent = false;
 	private volatile String latestRemoteVersion = "";
 	private String localModVersion = VERSION;
+	private String lastWorldKey = "";
 
 	public static class BuildRecord {
 		String theme;
@@ -108,6 +110,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 		ClientReceiveMessageEvents.GAME.register(this::onChat);
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> refreshPlayerName("server join", true));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> lastWorldKey = "");
 		CMDS.setHelperInstance(this);
 		CMDS.register();
 
@@ -127,6 +131,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 	private void onClientTick(MinecraftClient client) {
 		handleVersionWarning(client);
+		handleAutoNameCheck(client);
 
 		if (client.world == null || client.player == null || !Activated) return;
 		PlayerUtils.updateScoreboard(MinecraftInstance.mc);
@@ -205,6 +210,43 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 
 		lastGameState = gameState;
+	}
+
+	private void handleAutoNameCheck(MinecraftClient client) {
+		if (client.player == null || client.world == null) {
+			return;
+		}
+
+		String currentWorldKey = client.world.getRegistryKey().getValue().toString();
+		if (!currentWorldKey.equals(lastWorldKey)) {
+			lastWorldKey = currentWorldKey;
+			refreshPlayerName("world switch: " + currentWorldKey, true);
+		}
+	}
+
+	private void refreshPlayerName(String reason, boolean logUnchanged) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.player == null) {
+			return;
+		}
+
+		String detectedName = client.player.getGameProfile().name(); // auto detect name.
+		if (detectedName == null || detectedName.isEmpty()) {
+			PlayerUtils.debug("Auto-name check skipped (empty name) from " + reason);
+			return;
+		}
+
+		String previousName = playerName == null ? "" : playerName;
+		if (!detectedName.equals(previousName)) {
+			playerName = detectedName;
+			saveConfig();
+			PlayerUtils.debug("Auto-name updated from '" + previousName + "' to '" + detectedName + "' (" + reason + ")");
+			return;
+		}
+
+		if (logUnchanged) {
+			PlayerUtils.debug("Auto-name check OK ('" + detectedName + "') (" + reason + ")");
+		}
 	}
 
 	private void handleVersionWarning(MinecraftClient client) {
@@ -411,7 +453,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		Pattern pattern = Pattern.compile("(.*) got a perfect build in (.*)s!");
 		Matcher matcher = pattern.matcher(messageStr);
-		if (matcher.find() && matcher.group(1).equals(playerName)) {
+		if (!matcher.find()) {
+			return;
+		}
+
+		String winnerName = matcher.group(1).trim();
+		String expectedName = playerName == null ? "" : playerName.trim();
+		if (!winnerName.equalsIgnoreCase(expectedName)) {
+			PlayerUtils.debug("Ignored perfect-build message for '" + winnerName + "' (expected '" + expectedName + "')");
+			return;
+		}
+
 			double time = Double.parseDouble(matcher.group(2));
 			boolean isNewBestTime = updateTime(currentTheme, currentDifficulty, currentVariant, time);
 
@@ -420,7 +472,6 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			if (isNewBestTime) {
 				updateSessionBestTimes(cleanText(currentTheme), cleanText(currentDifficulty), currentVariant, time);
 			}
-		}
 	}
 
 	private boolean updateTime(String theme, String difficulty, String variant, double time) {

@@ -52,9 +52,6 @@ public class CMDS {
                         .executes(CMDS::toggleMod))
                 .then(literal("showtime")
                         .executes(CMDS::toggleShowTime))
-                .then(literal("setname")
-                        .then(argument("name", StringArgumentType.word())
-                                .executes(ctx -> setName(ctx, StringArgumentType.getString(ctx, "name")))))
                 .then(literal("times")
                         .executes(CMDS::showTimes)
                         .then(argument("theme", StringArgumentType.greedyString())
@@ -72,7 +69,6 @@ public class CMDS {
         PlayerUtils.sendMessageWithPing("§eSpeed-Builder Helper Commands");
         PlayerUtils.sendMessage(" §3/speedbuilders debug§7: enables / disables debugging");
         PlayerUtils.sendMessage(" §3/speedbuilders toggle§7: enables / disables speed-builder helper");
-        PlayerUtils.sendMessage(" §3/speedbuilders setname§7: sets your username to what you input");
         PlayerUtils.sendMessage(" §3/speedbuilders times§7: shows your best times sorted by speed");
         PlayerUtils.sendMessage(" §3/speedbuilders showtime§7: shows your best time for the theme you are currently playing");
         PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
@@ -102,13 +98,6 @@ public class CMDS {
     private static int toggleShowTime(CommandContext<FabricClientCommandSource> context) {
         SpeedBuildersHelper.StartingMessage = !SpeedBuildersHelper.StartingMessage;
         PlayerUtils.sendMessageWithPing("&eShow Times has been " + (SpeedBuildersHelper.StartingMessage ? "&aenabled" : "&cdisabled") + "&e.");
-        SpeedBuildersHelper.saveConfig();
-        return 1;
-    }
-
-    private static int setName(CommandContext<FabricClientCommandSource> context, String name) {
-        SpeedBuildersHelper.playerName = name;
-        PlayerUtils.sendMessageWithPing("&eSet name to &3" + name);
         SpeedBuildersHelper.saveConfig();
         return 1;
     }
