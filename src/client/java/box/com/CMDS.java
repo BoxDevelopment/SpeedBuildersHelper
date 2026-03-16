@@ -6,8 +6,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 
@@ -39,35 +39,32 @@ public class CMDS {
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        LiteralCommandNode<FabricClientCommandSource> speedbuildersNode = dispatcher.register(
-                literal("speedbuilders")
-                        .executes(CMDS::showHelp)
-                        .then(literal("debug")
-                                .executes(CMDS::toggleDebug))
-                        .then(literal("toggle")
-                                .executes(CMDS::toggleMod))
-                        .then(literal("showtime")
-                                .executes(CMDS::toggleShowTime))
-                        .then(literal("setname")
-                                .then(argument("name", StringArgumentType.word())
-                                        .executes(ctx -> setName(ctx, StringArgumentType.getString(ctx, "name")))))
-                        .then(literal("times")
-                                .executes(CMDS::showTimes)
-                                .then(argument("theme", StringArgumentType.greedyString())
-                                        .executes(ctx -> showTimes(ctx, StringArgumentType.getString(ctx, "theme")))))
-                        .then(literal("overview")
-                                .executes(CMDS::showOverview))
-                        .then(literal("reset")
-                                .executes(CMDS::resetSession))
-                        .then(literal("debugtest")
-                                .executes(CMDS::debugTest))
-        );
+        dispatcher.register(buildRootCommand("speedbuilders"));
+        dispatcher.register(buildRootCommand("sb"));
+    }
 
-        dispatcher.register(
-                literal("sb")
-                        .executes(CMDS::showHelp)  // Add execution handler for bare /sb command
-                        .redirect(speedbuildersNode)  // Redirect for subcommands
-        );
+    private static LiteralArgumentBuilder<FabricClientCommandSource> buildRootCommand(String root) {
+        return literal(root)
+                .executes(CMDS::showHelp)
+                .then(literal("debug")
+                        .executes(CMDS::toggleDebug))
+                .then(literal("toggle")
+                        .executes(CMDS::toggleMod))
+                .then(literal("showtime")
+                        .executes(CMDS::toggleShowTime))
+                .then(literal("setname")
+                        .then(argument("name", StringArgumentType.word())
+                                .executes(ctx -> setName(ctx, StringArgumentType.getString(ctx, "name")))))
+                .then(literal("times")
+                        .executes(CMDS::showTimes)
+                        .then(argument("theme", StringArgumentType.greedyString())
+                                .executes(ctx -> showTimes(ctx, StringArgumentType.getString(ctx, "theme")))))
+                .then(literal("overview")
+                        .executes(CMDS::showOverview))
+                .then(literal("reset")
+                        .executes(CMDS::resetSession))
+                .then(literal("debugtest")
+                        .executes(CMDS::debugTest));
     }
 
     private static int showHelp(CommandContext<FabricClientCommandSource> context) {
