@@ -12,7 +12,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,6 +80,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private volatile String latestRemoteVersion = "";
 	private String localModVersion = VERSION;
 	private String lastWorldKey = "";
+	private final Set<String> playerNameAliases = new HashSet<>();
 
 	public static class BuildRecord {
 		String theme;
@@ -230,23 +233,109 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return;
 		}
 
-		String detectedName = client.player.getGameProfile().name(); // auto detect name.
+		Set<String> aliases = collectCurrentPlayerAliases(client);
+		String detectedName = resolvePreferredName(client, aliases);
 		if (detectedName == null || detectedName.isEmpty()) {
 			PlayerUtils.debug("Auto-name check skipped (empty name) from " + reason);
 			return;
 		}
 
 		String previousName = playerName == null ? "" : playerName;
-		if (!detectedName.equals(previousName)) {
+		boolean aliasesChanged = !aliases.equals(playerNameAliases);
+		if (!detectedName.equals(previousName) || aliasesChanged) {
 			playerName = detectedName;
+			playerNameAliases.clear();
+			playerNameAliases.addAll(aliases);
 			saveConfig();
-			PlayerUtils.debug("Auto-name updated from '" + previousName + "' to '" + detectedName + "' (" + reason + ")");
+			PlayerUtils.debug("Auto-name updated from '" + previousName + "' to '" + detectedName + "' (" + reason + ") aliases=" + playerNameAliases);
 			return;
 		}
 
 		if (logUnchanged) {
-			PlayerUtils.debug("Auto-name check OK ('" + detectedName + "') (" + reason + ")");
+			PlayerUtils.debug("Auto-name check OK ('" + detectedName + "') (" + reason + ") aliases=" + playerNameAliases);
 		}
+	}
+
+	private Set<String> collectCurrentPlayerAliases(MinecraftClient client) {
+		Set<String> aliases = new HashSet<>();
+		if (client.player == null) {
+			return aliases;
+		}
+
+		addAlias(aliases, client.player.getGameProfile().name());
+		addAlias(aliases, client.player.getName().getString());
+		addAlias(aliases, client.player.getDisplayName().getString());
+
+		if (client.getNetworkHandler() != null) {
+			PlayerListEntry selfEntry = client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
+			if (selfEntry != null) {
+				addAlias(aliases, selfEntry.getProfile().name());
+				if (selfEntry.getDisplayName() != null) {
+					addAlias(aliases, selfEntry.getDisplayName().getString());
+				}
+			}
+		}
+
+		return aliases;
+	}
+
+	private String resolvePreferredName(MinecraftClient client, Set<String> aliases) {
+		if (client.getNetworkHandler() != null && client.player != null) {
+			PlayerListEntry selfEntry = client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
+			if (selfEntry != null && selfEntry.getDisplayName() != null) {
+				String preferred = extractLikelyPlayerName(selfEntry.getDisplayName().getString());
+				if (!preferred.isEmpty()) {
+					return preferred;
+				}
+			}
+		}
+
+		if (client.player != null) {
+			String profile = client.player.getGameProfile().name();
+			if (profile != null && !profile.isEmpty()) {
+				return profile;
+			}
+		}
+
+		return aliases.stream().findFirst().orElse("");
+	}
+
+	private void addAlias(Set<String> aliases, String rawName) {
+		String extracted = extractLikelyPlayerName(rawName);
+		if (!extracted.isEmpty()) {
+			aliases.add(extracted.toLowerCase(Locale.ROOT));
+		}
+	}
+
+	private String extractLikelyPlayerName(String raw) {
+		if (raw == null || raw.isEmpty()) {
+			return "";
+		}
+
+		String stripped = Formatting.strip(raw);
+		if (stripped == null) {
+			return "";
+		}
+
+		String noRanks = stripped.replaceAll("\\[[^\\]]*]", " ").trim();
+		if (noRanks.isEmpty()) {
+			return "";
+		}
+
+		String[] tokens = noRanks.split("\\s+");
+		for (int i = tokens.length - 1; i >= 0; i--) {
+			String token = tokens[i].replaceAll("[^A-Za-z0-9_]", "");
+			if (token.matches("[A-Za-z0-9_]{3,16}")) {
+				return token;
+			}
+		}
+
+		String compact = noRanks.replaceAll("[^A-Za-z0-9_]", "");
+		if (compact.matches("[A-Za-z0-9_]{3,16}")) {
+			return compact;
+		}
+
+		return "";
 	}
 
 	private void handleVersionWarning(MinecraftClient client) {
@@ -457,10 +546,11 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return;
 		}
 
-		String winnerName = matcher.group(1).trim();
-		String expectedName = playerName == null ? "" : playerName.trim();
-		if (!winnerName.equalsIgnoreCase(expectedName)) {
-			PlayerUtils.debug("Ignored perfect-build message for '" + winnerName + "' (expected '" + expectedName + "')");
+		String winnerName = extractLikelyPlayerName(matcher.group(1));
+		String winnerAlias = winnerName.toLowerCase(Locale.ROOT);
+		if (!playerNameAliases.contains(winnerAlias)) {
+			String expectedName = playerName == null ? "" : playerName.trim();
+			PlayerUtils.debug("Ignored perfect-build message for '" + winnerName + "' (expected '" + expectedName + "', aliases=" + playerNameAliases + ")");
 			return;
 		}
 
