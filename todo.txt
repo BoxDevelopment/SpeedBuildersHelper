@@ -6,4 +6,4 @@ config menu using modmenu replacing commands maybe a custom hud (if i can be bot
 hud customization: shows best time name of build varaint etc. optional to enable / disable replaces chat.
 make the code more read-able and look nicer.
 
-
+Fix varaint detection not happening at all on clownfish and painting (gonna crash out)
