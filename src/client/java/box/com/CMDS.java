@@ -59,9 +59,7 @@ public class CMDS {
                 .then(literal("overview")
                         .executes(CMDS::showOverview))
                 .then(literal("reset")
-                        .executes(CMDS::resetSession))
-                .then(literal("debugtest")
-                        .executes(CMDS::debugTest));
+                        .executes(CMDS::resetSession));
     }
 
     private static int showHelp(CommandContext<FabricClientCommandSource> context) {
@@ -74,10 +72,6 @@ public class CMDS {
         PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
         PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
         PlayerUtils.sendLine();
-        return 1;
-    }
-    private static int debugTest(CommandContext<FabricClientCommandSource> context) {
-        PlayerUtils.debug("TESTING DEBUG MESSAGE");
         return 1;
     }
 

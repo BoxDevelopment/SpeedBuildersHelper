@@ -81,6 +81,10 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private String localModVersion = VERSION;
 	private String lastWorldKey = "";
 	private final Set<String> playerNameAliases = new HashSet<>();
+	private static final int AUTO_NAME_WORLD_LOAD_DELAY_TICKS = 5;
+	private static final int AUTO_NAME_RETRY_DELAY_TICKS = 5;
+	private int pendingAutoNameRefreshTick = -1;
+	private String pendingAutoNameReason = "";
 
 	public static class BuildRecord {
 		String theme;
@@ -113,8 +117,13 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 		ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
 		ClientReceiveMessageEvents.GAME.register(this::onChat);
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> refreshPlayerName("server join", true));
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> lastWorldKey = "");
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
+				queueAutoNameRefresh(client, "server join", AUTO_NAME_WORLD_LOAD_DELAY_TICKS));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			lastWorldKey = "";
+			pendingAutoNameRefreshTick = -1;
+			pendingAutoNameReason = "";
+		});
 		CMDS.setHelperInstance(this);
 		CMDS.register();
 
@@ -223,8 +232,33 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		String currentWorldKey = client.world.getRegistryKey().getValue().toString();
 		if (!currentWorldKey.equals(lastWorldKey)) {
 			lastWorldKey = currentWorldKey;
-			refreshPlayerName("world switch: " + currentWorldKey, true);
+			queueAutoNameRefresh(client, "world switch: " + currentWorldKey, AUTO_NAME_WORLD_LOAD_DELAY_TICKS);
 		}
+
+		if (pendingAutoNameRefreshTick < 0 || client.player.age < pendingAutoNameRefreshTick) {
+			return;
+		}
+
+		if (getSelfTabListEntry(client) == null) {
+			pendingAutoNameRefreshTick = client.player.age + AUTO_NAME_RETRY_DELAY_TICKS;
+			PlayerUtils.debug("Auto-name refresh delayed; tab list entry not ready (" + pendingAutoNameReason + ")");
+			return;
+		}
+
+		String reason = pendingAutoNameReason;
+		pendingAutoNameRefreshTick = -1;
+		pendingAutoNameReason = "";
+		refreshPlayerName(reason + " (world ready)", true);
+	}
+
+	private void queueAutoNameRefresh(MinecraftClient client, String reason, int delayTicks) {
+		if (client.player == null) {
+			return;
+		}
+
+		pendingAutoNameRefreshTick = client.player.age + Math.max(0, delayTicks);
+		pendingAutoNameReason = reason;
+		PlayerUtils.debug("Queued auto-name refresh for '" + reason + "' in " + delayTicks + " ticks");
 	}
 
 	private void refreshPlayerName(String reason, boolean logUnchanged) {
@@ -262,30 +296,33 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return aliases;
 		}
 
+		PlayerListEntry selfEntry = getSelfTabListEntry(client);
+		if (selfEntry != null) {
+			addAlias(aliases, selfEntry.getProfile().name());
+			if (selfEntry.getDisplayName() != null) {
+				addAlias(aliases, selfEntry.getDisplayName().getString());
+			}
+		}
+
 		addAlias(aliases, client.player.getGameProfile().name());
 		addAlias(aliases, client.player.getName().getString());
 		addAlias(aliases, client.player.getDisplayName().getString());
-
-		if (client.getNetworkHandler() != null) {
-			PlayerListEntry selfEntry = client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
-			if (selfEntry != null) {
-				addAlias(aliases, selfEntry.getProfile().name());
-				if (selfEntry.getDisplayName() != null) {
-					addAlias(aliases, selfEntry.getDisplayName().getString());
-				}
-			}
-		}
 
 		return aliases;
 	}
 
 	private String resolvePreferredName(MinecraftClient client, Set<String> aliases) {
-		if (client.getNetworkHandler() != null && client.player != null) {
-			PlayerListEntry selfEntry = client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
-			if (selfEntry != null && selfEntry.getDisplayName() != null) {
-				String preferred = extractLikelyPlayerName(selfEntry.getDisplayName().getString());
-				if (!preferred.isEmpty()) {
-					return preferred;
+		PlayerListEntry selfEntry = getSelfTabListEntry(client);
+		if (selfEntry != null) {
+			String tabProfileName = extractLikelyPlayerName(selfEntry.getProfile().name());
+			if (!tabProfileName.isEmpty()) {
+				return tabProfileName;
+			}
+
+			if (selfEntry.getDisplayName() != null) {
+				String tabDisplayName = extractLikelyPlayerName(selfEntry.getDisplayName().getString());
+				if (!tabDisplayName.isEmpty()) {
+					return tabDisplayName;
 				}
 			}
 		}
@@ -297,7 +334,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			}
 		}
 
-		return aliases.stream().findFirst().orElse("");
+		List<String> sortedAliases = new ArrayList<>(aliases);
+		sortedAliases.sort(String::compareTo);
+		return sortedAliases.isEmpty() ? "" : sortedAliases.get(0);
+	}
+
+	private PlayerListEntry getSelfTabListEntry(MinecraftClient client) {
+		if (client.player == null || client.getNetworkHandler() == null) {
+			return null;
+		}
+
+		return client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
 	}
 
 	private void addAlias(Set<String> aliases, String rawName) {
