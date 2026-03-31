@@ -9,3 +9,5 @@ wr checker display it API provided by logan from speedbuilders.net <3
 
 
 Fix varaint detection not happening at all on clownfish and painting (gonna crash out)
+
+port to 26.1

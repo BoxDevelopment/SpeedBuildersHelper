@@ -12,7 +12,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -92,6 +91,30 @@ public class PlayerUtils implements MinecraftInstance {
         final String txt = replace("§7[§dSpeedBuilders§7]§r " + message);
         mc.player.sendMessage(Text.of(txt),false);
         PlayerUtils.error();
+    }
+
+    public static void sendToast(String title, String message) {
+        sendToast(title, message, false);
+    }
+
+    public static void sendToast(String title, String message, boolean ping) {
+        Text toastTitle = Text.literal(stripFormatting(title));
+        Text toastMessage = Text.literal(stripFormatting(message));
+        BuildInfoToast.show(toastTitle, toastMessage);
+
+        if (ping && nullCheck()) {
+            PlayerUtils.ping();
+        }
+    }
+
+    private static String stripFormatting(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        String translated = replace(text);
+        String stripped = Formatting.strip(translated);
+        return stripped != null ? stripped : translated;
     }
 
     public static void ping() {

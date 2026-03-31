@@ -71,6 +71,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private int lastGameState = -1;
 
 	public static boolean Debug = false;
+	public static boolean Toasts = false;
 	private boolean gameOverDisplayed = false;
 	public static boolean Activated = false;
 	public static boolean StartingMessage = false;
@@ -499,6 +500,15 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 	}
 
+	private String cleanText(String text) {
+		if (text == null || text.isEmpty()) {
+			return "";
+		}
+
+		String stripped = Formatting.strip(text);
+		return stripped != null ? stripped.trim() : text.replaceAll("§.", "").trim();
+	}
+
 	private int getGameState() {
 		// Game state detection from scoreboard
 		// 0 = lobby, 1 = waiting, 2 = in game
@@ -609,22 +619,31 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 					record.variant.equals(variant)) {
 
 				String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-				PlayerUtils.sendMessage("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
-						PlayerUtils.round(record.bestTime, 2) + "s");
+				String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+				String timeLabel = "Best Time: " + PlayerUtils.round(record.bestTime, 2) + "s";
+				sendBuildNotification("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
+						PlayerUtils.round(record.bestTime, 2) + "s", "SpeedBuilders", buildLabel + " - " + timeLabel, false);
 				return;
 			}
 		}
 
 		String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-		PlayerUtils.sendMessage("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record");
+		String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+		sendBuildNotification("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record",
+				"SpeedBuilders", buildLabel + " - No record", false);
 	}
 
-	private String cleanText(String text) {
-		return text.replaceAll("§.", "")
-				.replaceAll("[^\\x00-\\x7F]", "")
-				.replaceFirst("(?i)Theme: ", "")
-				.replaceFirst("(?i)Difficulty: ", "")
-				.trim();
+	private void sendBuildNotification(String chatMessage, String toastTitle, String toastBody, boolean ping) {
+		if (Toasts) {
+			PlayerUtils.sendToast(toastTitle, toastBody, ping);
+			return;
+		}
+
+		if (ping) {
+			PlayerUtils.sendMessageWithPing(chatMessage);
+		} else {
+			PlayerUtils.sendMessage(chatMessage);
+		}
 	}
 
 	private void onChat(Text message, boolean overlay) {
@@ -674,14 +693,26 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 					saveTimes();
 
 					String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-					PlayerUtils.sendMessage("§a§lNew Best Time! " + cleanTheme + variantDisplay +
-							" (" + cleanDifficulty + "): §b" + time + "§7s §b" + increase + "§7s");
+					String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+					sendBuildNotification(
+							"§a§lNew Best Time! " + cleanTheme + variantDisplay +
+									" (" + cleanDifficulty + "): §b" + time + "§7s §b" + increase + "§7s",
+							"New Best Time",
+							buildLabel + " - " + time + "s (" + increase + "s)",
+							true
+					);
 					isNewBest = true;
 				} else {
 					String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-					PlayerUtils.sendMessage("§aCompleted " + cleanTheme + variantDisplay +
-							" (" + cleanDifficulty + "): §b" + time + "§7s, Previous: " +
-							record.bestTime + "s");
+					String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+					sendBuildNotification(
+							"§aCompleted " + cleanTheme + variantDisplay +
+									" (" + cleanDifficulty + "): §b" + time + "§7s, Previous: " +
+									record.bestTime + "s",
+							"Build Completed",
+							buildLabel + " - " + time + "s (best " + PlayerUtils.round(record.bestTime, 2) + "s)",
+							false
+					);
 				}
 				return isNewBest;
 			}
@@ -691,8 +722,14 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		saveTimes();
 
 		String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-		PlayerUtils.sendMessage("§aFirst completion! §b" + cleanTheme + variantDisplay +
-				" (" + cleanDifficulty + ")§a in §b" + time + "§7s!");
+		String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+		sendBuildNotification(
+				"§aFirst completion! §b" + cleanTheme + variantDisplay +
+						" (" + cleanDifficulty + ")§a in §b" + time + "§7s!",
+				"First Completion",
+				buildLabel + " - " + time + "s",
+				true
+		);
 		isNewBest = true;
 		return isNewBest;
 	}
@@ -848,6 +885,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			Activated = true;
 			StartingMessage = true;
 			Debug = false;
+			Toasts = false;
 			playerName = "";
 			saveConfig();
 			LOG.info("Created Config File " + CONFIG_FILE.getAbsolutePath());
@@ -861,11 +899,13 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				Activated = json.has("activated") ? json.get("activated").getAsBoolean() : true;
 				StartingMessage = json.has("startingMessage") ? json.get("startingMessage").getAsBoolean() : true;
 				Debug = json.has("debug") ? json.get("debug").getAsBoolean() : false;
+				Toasts = json.has("toasts") ? json.get("toasts").getAsBoolean() : false;
 				playerName = json.has("playerName") ? json.get("playerName").getAsString() : "";
 
 				LOG.info("Loaded config: activated=" + Activated +
 						", startingMessage=" + StartingMessage +
 						", debug=" + Debug +
+						", toasts=" + Toasts +
 						", playerName=" + playerName);
 			}
 		} catch (IOException e) {
@@ -880,12 +920,14 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			json.addProperty("activated", Activated);
 			json.addProperty("startingMessage", StartingMessage);
 			json.addProperty("debug", Debug);
+			json.addProperty("toasts", Toasts);
 			json.addProperty("playerName", playerName != null ? playerName : "");
 
 			GSON.toJson(json, writer);
 			LOG.info("Saved config: activated=" + Activated +
 					", startingMessage=" + StartingMessage +
 					", debug=" + Debug +
+					", toasts=" + Toasts +
 					", playerName=" + playerName);
 		} catch (IOException e) {
 			LOG.error("Failed to save config file: " + e.getMessage());

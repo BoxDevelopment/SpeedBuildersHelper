@@ -52,6 +52,8 @@ public class CMDS {
                         .executes(CMDS::toggleMod))
                 .then(literal("showtime")
                         .executes(CMDS::toggleShowTime))
+                .then(literal("toasts")
+                        .executes(CMDS::toggleToasts))
                 .then(literal("times")
                         .executes(CMDS::showTimes)
                         .then(argument("theme", StringArgumentType.greedyString())
@@ -69,6 +71,7 @@ public class CMDS {
         PlayerUtils.sendMessage(" §3/speedbuilders toggle§7: enables / disables speed-builder helper");
         PlayerUtils.sendMessage(" §3/speedbuilders times§7: shows your best times sorted by speed");
         PlayerUtils.sendMessage(" §3/speedbuilders showtime§7: shows your best time for the theme you are currently playing");
+        PlayerUtils.sendMessage(" §3/speedbuilders toasts§7: toggles build notifications as Minecraft toasts");
         PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
         PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
         PlayerUtils.sendLine();
@@ -92,6 +95,13 @@ public class CMDS {
     private static int toggleShowTime(CommandContext<FabricClientCommandSource> context) {
         SpeedBuildersHelper.StartingMessage = !SpeedBuildersHelper.StartingMessage;
         PlayerUtils.sendMessageWithPing("&eShow Times has been " + (SpeedBuildersHelper.StartingMessage ? "&aenabled" : "&cdisabled") + "&e.");
+        SpeedBuildersHelper.saveConfig();
+        return 1;
+    }
+
+    private static int toggleToasts(CommandContext<FabricClientCommandSource> context) {
+        SpeedBuildersHelper.Toasts = !SpeedBuildersHelper.Toasts;
+        PlayerUtils.sendMessageWithPing("&eToasts have been " + (SpeedBuildersHelper.Toasts ? "&aenabled" : "&cdisabled") + "&e.");
         SpeedBuildersHelper.saveConfig();
         return 1;
     }
