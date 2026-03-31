@@ -83,8 +83,10 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	private final Set<String> playerNameAliases = new HashSet<>();
 	private static final int AUTO_NAME_WORLD_LOAD_DELAY_TICKS = 5;
 	private static final int AUTO_NAME_RETRY_DELAY_TICKS = 5;
+	private static final int VARIANT_RETRY_DELAY_TICKS = 4;
 	private int pendingAutoNameRefreshTick = -1;
 	private String pendingAutoNameReason = "";
+	private int pendingVariantRetryTick = -1;
 
 	public static class BuildRecord {
 		String theme;
@@ -153,14 +155,20 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		int gameState = getGameState();
 
+		boolean enteredRound = gameState == 2 && lastGameState != 2;
+
 		// Detect platform once when round starts
-		if (gameState == 2 && lastGameState != 2) {
+		if (enteredRound) {
 			detectClosestPlatform();
+			currentVariant = "";
+			pendingVariantRetryTick = -1;
 		}
 
 		// Clear platform when round ends
 		if (gameState != 2 && lastGameState == 2) {
 			closestPlatform = null;
+			currentVariant = "";
+			pendingVariantRetryTick = -1;
 		}
 
 		for (String line : PlayerUtils.STRING_SCOREBOARD) {
@@ -173,7 +181,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				currentDifficulty = extractedDifficulty;
 				//PlayerUtils.debug("Found difficulty: '" + currentDifficulty + "' from line: '" + line + "'");
 			} else if (line.contains("Game Over!")) {
-				PlayerUtils.debug("Game over detected in scoreboard");
+				// PlayerUtils.debug("Game over detected in scoreboard");
 				if (!gameOverDisplayed) {
 					showSessionOverview();
 					sessionTimes.clear();
@@ -184,32 +192,24 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		boolean themeChanged = !currentTheme.equals(oldTheme) && !currentTheme.isEmpty();
 		boolean difficultyChanged = !currentDifficulty.equals(oldDifficulty) && !currentDifficulty.isEmpty();
+		boolean newBuildShown = themeChanged && gameState == 2;
+		boolean variantTheme = requiresVariantDetection(currentTheme);
 
-		if (themeChanged) {
-			//PlayerUtils.debug("THEME CHANGED from '" + oldTheme + "' to '" + currentTheme + "'");
-
-			// Detect variant immediately when theme changes
-			if (gameState == 2) {
-				currentVariant = getVariant();
-				//PlayerUtils.debug("Detected variant: '" + currentVariant + "' for theme: " + currentTheme);
-
-				if (!currentTheme.isEmpty() && !currentDifficulty.isEmpty()) {
-					showBestTime(currentTheme, currentDifficulty, currentVariant);
-					lastTrackedTheme = currentTheme;
-					lastTrackedDifficulty = currentDifficulty;
-					lastTrackedVariant = currentVariant;
-				}
-			}
+		if (newBuildShown) {
+			currentVariant = "";
+			pendingVariantRetryTick = variantTheme ? client.player.age : -1;
 		}
 
-		if (difficultyChanged) {
-			//PlayerUtils.debug("DIFFICULTY CHANGED from '" + oldDifficulty + "' to '" + currentDifficulty + "'");
+		if (gameState == 2 && (variantTheme || pendingVariantRetryTick >= 0)) {
+			tryDetectVariant(client, newBuildShown);
 		}
 
-		if ((themeChanged || difficultyChanged) &&
-				(!currentTheme.equals(lastTrackedTheme) ||
-						!currentDifficulty.equals(lastTrackedDifficulty) ||
-						!currentVariant.equals(lastTrackedVariant))) {
+		boolean variantReady = !variantTheme || !currentVariant.isEmpty();
+
+		if ((!currentTheme.equals(lastTrackedTheme) ||
+				!currentDifficulty.equals(lastTrackedDifficulty) ||
+				!currentVariant.equals(lastTrackedVariant)) &&
+				variantReady) {
 
 			gameOverDisplayed = false;
 
@@ -222,6 +222,52 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 
 		lastGameState = gameState;
+	}
+
+	private void tryDetectVariant(MinecraftClient client, boolean forceRetryWindow) {
+		if (client.player == null) {
+			return;
+		}
+
+		int playerAge = client.player.age;
+
+		if (!requiresVariantDetection(currentTheme)) {
+			pendingVariantRetryTick = -1;
+			currentVariant = "";
+			return;
+		}
+
+		if (closestPlatform == null) {
+			detectClosestPlatform();
+		}
+
+		if (forceRetryWindow && pendingVariantRetryTick < playerAge) {
+			pendingVariantRetryTick = playerAge;
+		}
+
+		if (currentVariant != null && !currentVariant.isEmpty()) {
+			pendingVariantRetryTick = -1;
+			return;
+		}
+
+		if (pendingVariantRetryTick < 0 || playerAge < pendingVariantRetryTick) {
+			return;
+		}
+
+		String detectedVariant = getVariant();
+		if (detectedVariant == null || detectedVariant.isEmpty() || "error".equalsIgnoreCase(detectedVariant)) {
+			pendingVariantRetryTick = playerAge + VARIANT_RETRY_DELAY_TICKS;
+			return;
+		}
+
+		currentVariant = detectedVariant;
+		pendingVariantRetryTick = -1;
+		PlayerUtils.debug("Detected variant '" + currentVariant + "' for theme '" + cleanText(currentTheme) + "'");
+	}
+
+	private boolean requiresVariantDetection(String theme) {
+		String cleanTheme = cleanText(theme).toLowerCase(Locale.ROOT);
+		return "painting".equals(cleanTheme) || "clownfish".equals(cleanTheme);
 	}
 
 	private void handleAutoNameCheck(MinecraftClient client) {
@@ -241,7 +287,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		if (getSelfTabListEntry(client) == null) {
 			pendingAutoNameRefreshTick = client.player.age + AUTO_NAME_RETRY_DELAY_TICKS;
-			PlayerUtils.debug("Auto-name refresh delayed; tab list entry not ready (" + pendingAutoNameReason + ")");
+			// PlayerUtils.debug("Auto-name refresh delayed; tab list entry not ready (" + pendingAutoNameReason + ")");
 			return;
 		}
 
@@ -258,7 +304,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		pendingAutoNameRefreshTick = client.player.age + Math.max(0, delayTicks);
 		pendingAutoNameReason = reason;
-		PlayerUtils.debug("Queued auto-name refresh for '" + reason + "' in " + delayTicks + " ticks");
+		// PlayerUtils.debug("Queued auto-name refresh for '" + reason + "' in " + delayTicks + " ticks");
 	}
 
 	private void refreshPlayerName(String reason, boolean logUnchanged) {
@@ -270,7 +316,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		Set<String> aliases = collectCurrentPlayerAliases(client);
 		String detectedName = resolvePreferredName(client, aliases);
 		if (detectedName == null || detectedName.isEmpty()) {
-			PlayerUtils.debug("Auto-name check skipped (empty name) from " + reason);
+			// PlayerUtils.debug("Auto-name check skipped (empty name) from " + reason);
 			return;
 		}
 
@@ -281,12 +327,12 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			playerNameAliases.clear();
 			playerNameAliases.addAll(aliases);
 			saveConfig();
-			PlayerUtils.debug("Auto-name updated from '" + previousName + "' to '" + detectedName + "' (" + reason + ") aliases=" + playerNameAliases);
+			// PlayerUtils.debug("Auto-name updated from '" + previousName + "' to '" + detectedName + "' (" + reason + ") aliases=" + playerNameAliases);
 			return;
 		}
 
 		if (logUnchanged) {
-			PlayerUtils.debug("Auto-name check OK ('" + detectedName + "') (" + reason + ") aliases=" + playerNameAliases);
+			// PlayerUtils.debug("Auto-name check OK ('" + detectedName + "') (" + reason + ") aliases=" + playerNameAliases);
 		}
 	}
 
@@ -483,8 +529,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		if (nearest != null) {
 			closestPlatform = nearest;
-			PlayerUtils.debug("§bClosest platform: §f" + String.format("X=%d, Y=%d, Z=%d",
-					nearest.getX(), nearest.getY(), nearest.getZ()));
+			//PlayerUtils.debug("§bClosest platform: §f" + String.format("X=%d, Y=%d, Z=%d",
+		//			nearest.getX(), nearest.getY(), nearest.getZ()));
 		}
 	}
 
@@ -597,7 +643,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		String winnerAlias = winnerName.toLowerCase(Locale.ROOT);
 		if (!playerNameAliases.contains(winnerAlias)) {
 			String expectedName = playerName == null ? "" : playerName.trim();
-			PlayerUtils.debug("Ignored perfect-build message for '" + winnerName + "' (expected '" + expectedName + "', aliases=" + playerNameAliases + ")");
+			// PlayerUtils.debug("Ignored perfect-build message for '" + winnerName + "' (expected '" + expectedName + "', aliases=" + playerNameAliases + ")");
 			return;
 		}
 
@@ -847,3 +893,4 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 	}
 }
+
