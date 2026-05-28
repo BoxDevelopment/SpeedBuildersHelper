@@ -38,8 +38,8 @@ public class CMDS extends CommandBase {
             PlayerUtils.sendMessageWithPing("§eSpeed-Builder Helper Commands");
             PlayerUtils.sendMessage(" §3/speedbuilders debug§7: enables / disables debugging");
             PlayerUtils.sendMessage(" §3/speedbuilders toggle§7: enables / disables speed-builder helper");
-            PlayerUtils.sendMessage(" §3/speedbuilders setname§7: sets your username to what you input");
-            PlayerUtils.sendMessage(" §3/speedbuilders times§7: shows your best times sorted by speed");
+            PlayerUtils.sendMessage(" §3/speedbuilders setname <name>§7: sets your username to <name>");
+            PlayerUtils.sendMessage(" §3/speedbuilders times [theme]§7: shows your best times filtered with [theme] and sorted by speed");
             PlayerUtils.sendMessage(" §3/speedbuilders showtime§7: shows your best time for the theme you are currently playing");
             PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
             PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
@@ -84,9 +84,27 @@ public class CMDS extends CommandBase {
 
                 for (JsonElement element : themesArray) {
                     JsonObject record = element.getAsJsonObject();
-                    if (!targetTheme.isEmpty() && !record.get("theme").getAsString().toLowerCase().contains(targetTheme)) {
-                        continue;
-                    }
+					if (!targetTheme.isEmpty())
+					{
+						char comparisonSymbol = targetTheme.charAt(0);
+						if (comparisonSymbol == '<' || comparisonSymbol == '>' || comparisonSymbol == '=')
+						{
+							double bestTime = record.get("bestTime").getAsDouble();
+							double timeCondition = Double.parseDouble(targetTheme.substring(1));
+							if (comparisonSymbol == '<' && bestTime >= timeCondition) {
+								continue;
+							} 
+							else if (comparisonSymbol == '>' && bestTime <= timeCondition) {
+								continue;
+							}
+							else if (comparisonSymbol == '=' && bestTime != timeCondition) {
+								continue;
+							}
+						}
+						else if (!record.get("theme").getAsString().toLowerCase().contains(targetTheme)) {
+							continue;
+						}
+					}
                     Map<String, Object> timeRecord = new HashMap<>();
                     timeRecord.put("theme", record.get("theme").getAsString());
                     timeRecord.put("difficulty", record.get("difficulty").getAsString());
