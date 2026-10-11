@@ -132,6 +132,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		loadTimes();
 		loadConfig();
+		WorldRecords.init(DIRECTORY);
 		startVersionCheck();
 	}
 
@@ -621,16 +622,54 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 				String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
 				String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
 				String timeLabel = "Best Time: " + PlayerUtils.round(record.bestTime, 2) + "s";
+				WorldRecords.Record wr = WorldRecords.get(cleanDifficulty, cleanTheme, variant);
 				sendBuildNotification("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
-						PlayerUtils.round(record.bestTime, 2) + "s", "SpeedBuilders", buildLabel + " - " + timeLabel, false);
+						PlayerUtils.round(record.bestTime, 2) + "s" + worldRecordChatSuffix(wr),
+						"SpeedBuilders", buildLabel + " - " + timeLabel + worldRecordToastSuffix(wr), false);
 				return;
 			}
 		}
 
 		String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
 		String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
-		sendBuildNotification("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record",
-				"SpeedBuilders", buildLabel + " - No record", false);
+		WorldRecords.Record wr = WorldRecords.get(cleanDifficulty, cleanTheme, variant);
+		sendBuildNotification("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record" +
+				worldRecordChatSuffix(wr), "SpeedBuilders", buildLabel + " - No record" + worldRecordToastSuffix(wr), false);
+	}
+
+	private String worldRecordChatSuffix(WorldRecords.Record wr) {
+		if (wr == null) {
+			return "";
+		}
+		return " §8| §6WR: §e" + WorldRecords.formatTime(wr.time) + "s §7by " + wr.user;
+	}
+
+	private String worldRecordToastSuffix(WorldRecords.Record wr) {
+		if (wr == null) {
+			return "";
+		}
+		return " | WR: " + WorldRecords.formatTime(wr.time) + "s (" + wr.user + ")";
+	}
+
+	private void checkWorldRecord(String theme, String difficulty, String variant, double time) {
+		String cleanTheme = cleanText(theme);
+		String cleanDifficulty = cleanText(difficulty);
+		WorldRecords.Record wr = WorldRecords.get(cleanDifficulty, cleanTheme, variant);
+		if (wr == null || time >= wr.time) {
+			return;
+		}
+
+		String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
+		String buildLabel = cleanTheme + variantDisplay + " (" + cleanDifficulty + ")";
+		sendBuildNotification(
+				"§6§lNEW WORLD RECORD! §b" + cleanTheme + variantDisplay +
+						" §7(" + cleanDifficulty + "): §a" + time + "§7s §8| §7Previous: §e" +
+						WorldRecords.formatTime(wr.time) + "s §7by " + wr.user,
+				"New World Record!",
+				buildLabel + " - " + time + "s (was " + WorldRecords.formatTime(wr.time) + "s by " + wr.user + ")",
+				true
+		);
+		WorldRecords.set(cleanDifficulty, cleanTheme, variant, time, playerName);
 	}
 
 	private void sendBuildNotification(String chatMessage, String toastTitle, String toastBody, boolean ping) {
@@ -668,6 +707,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 			double time = Double.parseDouble(matcher.group(2));
 			boolean isNewBestTime = updateTime(currentTheme, currentDifficulty, currentVariant, time);
+			checkWorldRecord(currentTheme, currentDifficulty, currentVariant, time);
 
 			sessionTimes.add(new BuildRecord(cleanText(currentTheme), cleanText(currentDifficulty), currentVariant, time));
 
