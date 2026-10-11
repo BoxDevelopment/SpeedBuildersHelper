@@ -35,7 +35,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 	public static final String MODID = "speedbuildershelper";
 	public static final String VERSION = "1.1";
-	private static final String VERSION_CHECK_URL = "https://raw.githubusercontent.com/BoxDevelopment/SpeedBuildersHelper/1.21/version.txt";
+	private static final String VERSION_CHECK_URL = "https://raw.githubusercontent.com/BoxDevelopment/SpeedBuildersHelper/26.x/version.txt";
 	private static final HttpClient VERSION_HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(5))
 			.build();
