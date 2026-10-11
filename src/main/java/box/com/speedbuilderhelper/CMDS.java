@@ -26,7 +26,7 @@ public class CMDS extends CommandBase {
 
     @Override
     public List<String> getCommandAliases() {
-        return Arrays.asList("sb", "speedbuilders");
+        return Arrays.asList("sb", "sbh", "speedbuilders");
     }
 
 
@@ -43,6 +43,7 @@ public class CMDS extends CommandBase {
             PlayerUtils.sendMessage(" §3/speedbuilders showtime§7: shows your best time for the theme you are currently playing");
             PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
             PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
+            PlayerUtils.sendMessage(" §3/speedbuilders import [userId]§7: imports your personal bests from speedbuilders.net");
             PlayerUtils.sendLine();
         }
         else if (args[0].equalsIgnoreCase("debug")) {
@@ -147,6 +148,22 @@ public class CMDS extends CommandBase {
                     .getIndexedModList().get(SpeedBuilderHelper.MODID).getMod();
 
             instance.showSessionBestTimesOverview();
+        }
+        else if (args[0].equalsIgnoreCase("import")) {
+            if (args.length < 2) {
+                PlayerUtils.sendLine();
+                PlayerUtils.sendMessage("§eImport your personal bests from speedbuilders.net");
+                PlayerUtils.sendMessage("§71. §fGo to §3speedbuilders.net/user-search §fand search for your profile.");
+                PlayerUtils.sendMessage("§f   Your §3User ID §fis shown on your profile (a long number).");
+                PlayerUtils.sendMessage("§72. §fRun §3/sbh import <userId>");
+                PlayerUtils.sendMessage("§7Your faster local times are never overwritten.");
+                PlayerUtils.sendLine();
+                return;
+            }
+            SpeedBuilderHelper instance = (SpeedBuilderHelper) net.minecraftforge.fml.common.Loader.instance()
+                    .getIndexedModList().get(SpeedBuilderHelper.MODID).getMod();
+
+            instance.importPersonalBests(args[1]);
         }
         else if (args[0].equalsIgnoreCase("reset")) {
             SpeedBuilderHelper instance = (SpeedBuilderHelper) net.minecraftforge.fml.common.Loader.instance()

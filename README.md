@@ -21,6 +21,8 @@ No known incompatabilities
 
 /speedbuilders reset: clears the session best times list
 
+/speedbuilders import [userId]: imports your personal bests from speedbuilders.net (run it without a user ID for a guide to finding yours)
+
 
 # Help
 Contact me at boxeth on discord
