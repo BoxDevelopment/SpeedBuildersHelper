@@ -90,6 +90,7 @@ public class SpeedBuilderHelper {
         MinecraftForge.EVENT_BUS.register(this);
         loadTimes();
         loadConfig();
+        WorldRecords.init(Directory);
     }
 
     public void clearSessionBestTimes() {
@@ -285,13 +286,37 @@ public class SpeedBuilderHelper {
 
                 String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
                 PlayerUtils.sendMessage("§b" + cleanTheme +  "§7" + variantDisplay + " §7(" + cleanDifficulty + ") §eBest Time: §a" +
-                        PlayerUtils.round(record.bestTime, 2) + "s");
+                        PlayerUtils.round(record.bestTime, 2) + "s" + worldRecordSuffix(cleanTheme, cleanDifficulty, variant));
                 return;
             }
         }
 
         String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
-        PlayerUtils.sendMessage("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record");
+        PlayerUtils.sendMessage("§b" + cleanTheme + variantDisplay + " §7(" + cleanDifficulty + ") §eNo previous record" +
+                worldRecordSuffix(cleanTheme, cleanDifficulty, variant));
+    }
+
+    private String worldRecordSuffix(String theme, String difficulty, String variant) {
+        WorldRecords.Record wr = WorldRecords.get(difficulty, theme, variant);
+        if (wr == null) {
+            return "";
+        }
+        return " §8| §6WR: §e" + WorldRecords.formatTime(wr.time) + "s §7by " + wr.user;
+    }
+
+    private void checkWorldRecord(String theme, String difficulty, String variant, double time) {
+        String cleanTheme = cleanText(theme);
+        String cleanDifficulty = cleanText(difficulty);
+        WorldRecords.Record wr = WorldRecords.get(cleanDifficulty, cleanTheme, variant);
+        if (wr == null || time >= wr.time) {
+            return;
+        }
+
+        String variantDisplay = variant.isEmpty() ? "" : " (" + variant + ")";
+        PlayerUtils.sendMessageWithPing("§6§lNEW WORLD RECORD! §b" + cleanTheme + variantDisplay +
+                " §7(" + cleanDifficulty + "): §a" + time + "§7s §8| §7Previous: §e" +
+                WorldRecords.formatTime(wr.time) + "s §7by " + wr.user);
+        WorldRecords.set(cleanDifficulty, cleanTheme, variant, time, playerName);
     }
 
     private String cleanText(String text) {
@@ -314,6 +339,7 @@ public class SpeedBuilderHelper {
         if (matcher.find() && matcher.group(1).equals(playerName)) {
             double time = Double.parseDouble(matcher.group(2));
             boolean isNewBestTime = updateTime(currentTheme, currentDifficulty, currentVariant, time);
+            checkWorldRecord(currentTheme, currentDifficulty, currentVariant, time);
 
             sessionTimes.add(new BuildRecord(cleanText(currentTheme), cleanText(currentDifficulty), currentVariant, time));
 
