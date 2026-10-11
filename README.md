@@ -2,7 +2,7 @@
 A mod to assist in time keeping in speedbuilders
 
 # Usage
-Version: Fabric 1.21.11
+Version: Fabric 26.x
 No known incompatabilities
 
 /sb or /speedbuilders - Opens the SpeedBuilders settings
@@ -33,5 +33,4 @@ Hope this can be used!
 Probably some issues with Vertical and Horizontal Painting
 and different levels of ClownFish
 
-Port to fabric versions 1.21+
 
