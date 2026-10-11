@@ -9,13 +9,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,7 +41,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			.build();
 
 	public static final Logger LOG = LogManager.getLogger("SPEEDBUILDERS");
-	public static File DIRECTORY = new File(MinecraftClient.getInstance().runDirectory, "SpeedBuildersHelper");
+	public static File DIRECTORY = new File(Minecraft.getInstance().gameDirectory, "SpeedBuildersHelper");
 	private static final File TIMES_FILE = new File(DIRECTORY, "speedbuilder_times.json");
 	private static final File CONFIG_FILE = new File(DIRECTORY, "speedbuildershelper.json");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -144,11 +144,11 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		return sessionBestTimes;
 	}
 
-	private void onClientTick(MinecraftClient client) {
+	private void onClientTick(Minecraft client) {
 		handleVersionWarning(client);
 		handleAutoNameCheck(client);
 
-		if (client.world == null || client.player == null || !Activated) return;
+		if (client.level == null || client.player == null || !Activated) return;
 		PlayerUtils.updateScoreboard(MinecraftInstance.mc);
 
 		String oldTheme = currentTheme;
@@ -198,7 +198,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 
 		if (newBuildShown) {
 			currentVariant = "";
-			pendingVariantRetryTick = variantTheme ? client.player.age : -1;
+			pendingVariantRetryTick = variantTheme ? client.player.tickCount : -1;
 		}
 
 		if (gameState == 2 && (variantTheme || pendingVariantRetryTick >= 0)) {
@@ -225,12 +225,12 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		lastGameState = gameState;
 	}
 
-	private void tryDetectVariant(MinecraftClient client, boolean forceRetryWindow) {
+	private void tryDetectVariant(Minecraft client, boolean forceRetryWindow) {
 		if (client.player == null) {
 			return;
 		}
 
-		int playerAge = client.player.age;
+		int playerAge = client.player.tickCount;
 
 		if (!requiresVariantDetection(currentTheme)) {
 			pendingVariantRetryTick = -1;
@@ -271,23 +271,23 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		return "painting".equals(cleanTheme) || "clownfish".equals(cleanTheme);
 	}
 
-	private void handleAutoNameCheck(MinecraftClient client) {
-		if (client.player == null || client.world == null) {
+	private void handleAutoNameCheck(Minecraft client) {
+		if (client.player == null || client.level == null) {
 			return;
 		}
 
-		String currentWorldKey = client.world.getRegistryKey().getValue().toString();
+		String currentWorldKey = client.level.dimension().identifier().toString();
 		if (!currentWorldKey.equals(lastWorldKey)) {
 			lastWorldKey = currentWorldKey;
 			queueAutoNameRefresh(client, "world switch: " + currentWorldKey, AUTO_NAME_WORLD_LOAD_DELAY_TICKS);
 		}
 
-		if (pendingAutoNameRefreshTick < 0 || client.player.age < pendingAutoNameRefreshTick) {
+		if (pendingAutoNameRefreshTick < 0 || client.player.tickCount < pendingAutoNameRefreshTick) {
 			return;
 		}
 
 		if (getSelfTabListEntry(client) == null) {
-			pendingAutoNameRefreshTick = client.player.age + AUTO_NAME_RETRY_DELAY_TICKS;
+			pendingAutoNameRefreshTick = client.player.tickCount + AUTO_NAME_RETRY_DELAY_TICKS;
 			// PlayerUtils.debug("Auto-name refresh delayed; tab list entry not ready (" + pendingAutoNameReason + ")");
 			return;
 		}
@@ -298,18 +298,18 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		refreshPlayerName(reason + " (world ready)", true);
 	}
 
-	private void queueAutoNameRefresh(MinecraftClient client, String reason, int delayTicks) {
+	private void queueAutoNameRefresh(Minecraft client, String reason, int delayTicks) {
 		if (client.player == null) {
 			return;
 		}
 
-		pendingAutoNameRefreshTick = client.player.age + Math.max(0, delayTicks);
+		pendingAutoNameRefreshTick = client.player.tickCount + Math.max(0, delayTicks);
 		pendingAutoNameReason = reason;
 		// PlayerUtils.debug("Queued auto-name refresh for '" + reason + "' in " + delayTicks + " ticks");
 	}
 
 	private void refreshPlayerName(String reason, boolean logUnchanged) {
-		MinecraftClient client = MinecraftClient.getInstance();
+		Minecraft client = Minecraft.getInstance();
 		if (client.player == null) {
 			return;
 		}
@@ -337,17 +337,17 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 	}
 
-	private Set<String> collectCurrentPlayerAliases(MinecraftClient client) {
+	private Set<String> collectCurrentPlayerAliases(Minecraft client) {
 		Set<String> aliases = new HashSet<>();
 		if (client.player == null) {
 			return aliases;
 		}
 
-		PlayerListEntry selfEntry = getSelfTabListEntry(client);
+		PlayerInfo selfEntry = getSelfTabListEntry(client);
 		if (selfEntry != null) {
 			addAlias(aliases, selfEntry.getProfile().name());
-			if (selfEntry.getDisplayName() != null) {
-				addAlias(aliases, selfEntry.getDisplayName().getString());
+			if (selfEntry.getTabListDisplayName() != null) {
+				addAlias(aliases, selfEntry.getTabListDisplayName().getString());
 			}
 		}
 
@@ -358,16 +358,16 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		return aliases;
 	}
 
-	private String resolvePreferredName(MinecraftClient client, Set<String> aliases) {
-		PlayerListEntry selfEntry = getSelfTabListEntry(client);
+	private String resolvePreferredName(Minecraft client, Set<String> aliases) {
+		PlayerInfo selfEntry = getSelfTabListEntry(client);
 		if (selfEntry != null) {
 			String tabProfileName = extractLikelyPlayerName(selfEntry.getProfile().name());
 			if (!tabProfileName.isEmpty()) {
 				return tabProfileName;
 			}
 
-			if (selfEntry.getDisplayName() != null) {
-				String tabDisplayName = extractLikelyPlayerName(selfEntry.getDisplayName().getString());
+			if (selfEntry.getTabListDisplayName() != null) {
+				String tabDisplayName = extractLikelyPlayerName(selfEntry.getTabListDisplayName().getString());
 				if (!tabDisplayName.isEmpty()) {
 					return tabDisplayName;
 				}
@@ -386,12 +386,12 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		return sortedAliases.isEmpty() ? "" : sortedAliases.get(0);
 	}
 
-	private PlayerListEntry getSelfTabListEntry(MinecraftClient client) {
-		if (client.player == null || client.getNetworkHandler() == null) {
+	private PlayerInfo getSelfTabListEntry(Minecraft client) {
+		if (client.player == null || client.getConnection() == null) {
 			return null;
 		}
 
-		return client.getNetworkHandler().getPlayerListEntry(client.player.getUuid());
+		return client.getConnection().getPlayerInfo(client.player.getUUID());
 	}
 
 	private void addAlias(Set<String> aliases, String rawName) {
@@ -406,7 +406,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return "";
 		}
 
-		String stripped = Formatting.strip(raw);
+		String stripped = ChatFormatting.stripFormatting(raw);
 		if (stripped == null) {
 			return "";
 		}
@@ -432,8 +432,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		return "";
 	}
 
-	private void handleVersionWarning(MinecraftClient client) {
-		if (client.world == null || client.player == null) {
+	private void handleVersionWarning(Minecraft client) {
+		if (client.level == null || client.player == null) {
 			return;
 		}
 
@@ -505,7 +505,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return "";
 		}
 
-		String stripped = Formatting.strip(text);
+		String stripped = ChatFormatting.stripFormatting(text);
 		return stripped != null ? stripped.trim() : text.replaceAll("§.", "").trim();
 	}
 
@@ -522,15 +522,15 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	}
 
 	private void detectClosestPlatform() {
-		MinecraftClient client = MinecraftClient.getInstance();
+		Minecraft client = Minecraft.getInstance();
 		if (client.player == null) return;
 
-		BlockPos playerPos = client.player.getBlockPos();
+		BlockPos playerPos = client.player.blockPosition();
 		double closestDist = Double.MAX_VALUE;
 		BlockPos nearest = null;
 
 		for (BlockPos platform : platformPositions) {
-			double dist = playerPos.getSquaredDistance(platform);
+			double dist = playerPos.distSqr(platform);
 			if (dist < closestDist) {
 				closestDist = dist;
 				nearest = platform;
@@ -549,8 +549,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 			return "error";
 		}
 
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) return "error";
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null) return "error";
 
 		String cleanTheme = cleanText(currentTheme).toLowerCase();
 
@@ -565,18 +565,18 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	}
 
 	private String getPaintingVariant() {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) return "";
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null) return "";
 
-		BlockPos checkPos = closestPlatform.up(2);
-		Block block = client.world.getBlockState(checkPos).getBlock();
+		BlockPos checkPos = closestPlatform.above(2);
+		Block block = client.level.getBlockState(checkPos).getBlock();
 
 		PlayerUtils.debug("Checking painting variant at " + checkPos);
 
-		if (block == Blocks.LIME_WOOL) {
+		if (block == Blocks.WOOL.lime()) {
 			PlayerUtils.debug("Found lime wool - Horizontal variant");
 			return "Horizontal";
-		} else if (block == Blocks.YELLOW_WOOL) {
+		} else if (block == Blocks.WOOL.yellow()) {
 			PlayerUtils.debug("Found yellow wool - Vertical variant");
 			return "Vertical";
 		}
@@ -586,18 +586,18 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 	}
 
 	private String getClownfishVariant() {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) return "";
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null) return "";
 
-		BlockPos checkPos = closestPlatform.up(2);
-		Block block = client.world.getBlockState(checkPos).getBlock();
+		BlockPos checkPos = closestPlatform.above(2);
+		Block block = client.level.getBlockState(checkPos).getBlock();
 
 		PlayerUtils.debug("Checking clownfish variant at " + checkPos);
 
-		if (block == Blocks.ORANGE_STAINED_GLASS || block == Blocks.ORANGE_STAINED_GLASS_PANE) {
+		if (block == Blocks.STAINED_GLASS.orange() || block == Blocks.STAINED_GLASS_PANE.orange()) {
 			PlayerUtils.debug("Found orange glass - Medium variant");
 			return "Medium";
-		} else if (block == Blocks.ORANGE_TERRACOTTA) {
+		} else if (block == Blocks.DYED_TERRACOTTA.orange()) {
 			PlayerUtils.debug("Found orange terracotta - Small variant");
 			return "Small";
 		}
@@ -646,7 +646,7 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		}
 	}
 
-	private void onChat(Text message, boolean overlay) {
+	private void onChat(Component message, boolean overlay) {
 		if (!Activated) {
 			return;
 		}
