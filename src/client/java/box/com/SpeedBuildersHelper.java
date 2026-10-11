@@ -28,6 +28,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -134,6 +135,64 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		loadConfig();
 		WorldRecords.init(DIRECTORY);
 		startVersionCheck();
+	}
+
+	private final AtomicBoolean importing = new AtomicBoolean(false);
+
+	public void importPersonalBests(String userId) {
+		if (!PbImport.isValidUserId(userId)) {
+			PlayerUtils.sendError("§cThat doesn't look like a user ID. Run §3/sbh import§c for help.");
+			return;
+		}
+		if (!importing.compareAndSet(false, true)) {
+			PlayerUtils.sendError("§cAn import is already running.");
+			return;
+		}
+
+		PlayerUtils.sendMessage("§eImporting personal bests for user ID §3" + userId + "§e...");
+		PbImport.fetchAsync(userId, result -> Minecraft.getInstance().execute(() -> {
+			importing.set(false);
+			if (result.error != null) {
+				PlayerUtils.sendError("§c" + result.error + ".");
+				return;
+			}
+			applyImport(result);
+		}));
+	}
+
+	private void applyImport(PbImport.Result result) {
+		int added = 0;
+		int improved = 0;
+		int kept = 0;
+
+		for (PbImport.Entry entry : result.entries) {
+			BuildRecord match = null;
+			for (BuildRecord record : times) {
+				if (record.theme.equalsIgnoreCase(entry.theme) &&
+						record.difficulty.equalsIgnoreCase(entry.difficulty) &&
+						record.variant.equalsIgnoreCase(entry.variant)) {
+					match = record;
+					break;
+				}
+			}
+
+			if (match == null) {
+				times.add(new BuildRecord(entry.theme, entry.difficulty, entry.variant, entry.time));
+				added++;
+			} else if (entry.time < match.bestTime) {
+				match.bestTime = entry.time;
+				improved++;
+			} else {
+				kept++;
+			}
+		}
+		saveTimes();
+
+		PlayerUtils.sendMessageWithPing("§aImported §b" + result.entries.size() + " §abuilds: §b" + added +
+				" §7new§a, §b" + improved + " §7faster than your saved time§a, §b" + kept + " §7already as fast or faster locally.");
+		if (result.skipped > 0) {
+			PlayerUtils.sendMessage("§7Skipped " + result.skipped + " entries with an unreadable time.");
+		}
 	}
 
 	public void clearSessionBestTimes() {
@@ -722,8 +781,8 @@ public class SpeedBuildersHelper implements ClientModInitializer {
 		boolean isNewBest = false;
 
 		for (BuildRecord record : times) {
-			if (record.theme.equals(cleanTheme) &&
-					record.difficulty.equals(cleanDifficulty) &&
+			if (record.theme.equalsIgnoreCase(cleanTheme) &&
+					record.difficulty.equalsIgnoreCase(cleanDifficulty) &&
 					record.variant.equals(variant)) {
 
 				if (time < record.bestTime) {

@@ -41,6 +41,7 @@ public class CMDS {
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(buildRootCommand("speedbuilders"));
         dispatcher.register(buildRootCommand("sb"));
+        dispatcher.register(buildRootCommand("sbh"));
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> buildRootCommand(String root) {
@@ -60,6 +61,10 @@ public class CMDS {
                                 .executes(ctx -> showTimes(ctx, StringArgumentType.getString(ctx, "theme")))))
                 .then(literal("overview")
                         .executes(CMDS::showOverview))
+                .then(literal("import")
+                        .executes(CMDS::showImportHelp)
+                        .then(argument("userId", StringArgumentType.word())
+                                .executes(ctx -> importPersonalBests(StringArgumentType.getString(ctx, "userId")))))
                 .then(literal("reset")
                         .executes(CMDS::resetSession));
     }
@@ -74,6 +79,7 @@ public class CMDS {
         PlayerUtils.sendMessage(" §3/speedbuilders toasts§7: toggles build notifications as Minecraft toasts");
         PlayerUtils.sendMessage(" §3/speedbuilders overview§7: shows all new best times achieved this session");
         PlayerUtils.sendMessage(" §3/speedbuilders reset§7: clears the session best times list");
+        PlayerUtils.sendMessage(" §3/speedbuilders import [userId]§7: imports your personal bests from speedbuilders.net");
         PlayerUtils.sendLine();
         return 1;
     }
@@ -169,6 +175,27 @@ public class CMDS {
     private static int showOverview(CommandContext<FabricClientCommandSource> context) {
         if (helperInstance != null) {
             helperInstance.showSessionBestTimesOverview();
+            return 1;
+        } else {
+            PlayerUtils.sendError("§cError: Helper instance not available");
+            return 0;
+        }
+    }
+
+    private static int showImportHelp(CommandContext<FabricClientCommandSource> context) {
+        PlayerUtils.sendLine();
+        PlayerUtils.sendMessage("§eImport your personal bests from speedbuilders.net");
+        PlayerUtils.sendMessage("§71. §fGo to §3speedbuilders.net/user-search §fand search for your profile.");
+        PlayerUtils.sendMessage("§f   Your §3User ID §fis shown on your profile (a long number).");
+        PlayerUtils.sendMessage("§72. §fRun §3/sbh import <userId>");
+        PlayerUtils.sendMessage("§7Your faster local times are never overwritten.");
+        PlayerUtils.sendLine();
+        return 1;
+    }
+
+    private static int importPersonalBests(String userId) {
+        if (helperInstance != null) {
+            helperInstance.importPersonalBests(userId);
             return 1;
         } else {
             PlayerUtils.sendError("§cError: Helper instance not available");
